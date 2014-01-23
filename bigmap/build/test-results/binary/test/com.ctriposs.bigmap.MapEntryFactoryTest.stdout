@@ -1,4 +1,0 @@
-mapEntryPool.getFreeEntryIndexSet().size() = 407
-mapEntryPool.getTotalExatchMatchReuseCounter() = 76
-mapEntryPool.getTotalApproximateMatchReuseCounter() = 255516
-mapEntryPool.getTotalAcquireNewCounter() = 408
