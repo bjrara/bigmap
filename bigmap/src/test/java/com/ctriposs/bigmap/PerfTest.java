@@ -119,7 +119,10 @@ public class PerfTest {
 	                        assertEquals(i, value2.ii);
 	                    }
 	                    for (int i = finalT; i < COUNT; i += N_THREADS)
-	                        assertNotNull(map.get(users(user, i).getBytes()));
+	                    	if (map.get(users(user,i).getBytes()) == null) {
+	                    		System.out.println(users(user, i));
+	                    	}
+                            //assertNotNull(map.get(users(user, i).getBytes()));
 	                    for (int i = finalT; i < COUNT; i += N_THREADS)
 	                        map.remove(users(user, i).getBytes());
 					} catch (Exception ex) {

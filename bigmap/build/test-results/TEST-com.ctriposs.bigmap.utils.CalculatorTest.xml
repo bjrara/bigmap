@@ -1,7 +1,7 @@
 <?xml version="1.1" encoding="UTF-8"?>
-<testsuite name="com.ctriposs.bigmap.utils.CalculatorTest" tests="1" failures="0" errors="0" timestamp="2014-01-23T13:26:32" hostname="N9OL8YY4Y96NIBY" time="0.0">
+<testsuite name="com.ctriposs.bigmap.utils.CalculatorTest" tests="1" failures="0" errors="0" timestamp="2014-01-23T17:37:40" hostname="N9OL8YY4Y96NIBY" time="0.0010">
   <properties/>
-  <testcase name="testCalculator" classname="com.ctriposs.bigmap.utils.CalculatorTest" time="0.0"/>
+  <testcase name="testCalculator" classname="com.ctriposs.bigmap.utils.CalculatorTest" time="0.0010"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

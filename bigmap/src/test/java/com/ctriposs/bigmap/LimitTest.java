@@ -18,12 +18,12 @@ public class LimitTest {
 	public void limitTest() throws IOException, InterruptedException {
 		map = new BigConcurrentHashMapImpl(testDir, "limitTest");
 		
-		/*for(long counter = 0;; counter++) {
+		/*
+		for(long counter = 0;; counter++) {
 			map.put(String.valueOf(counter).getBytes(), "a".getBytes());
 			if (counter%1000000 == 0) System.out.println(""+counter);
-		}*/
-		
-		Thread.currentThread().sleep(30 * 1000);
+		}
+		*/
 	}
 	
 	@After

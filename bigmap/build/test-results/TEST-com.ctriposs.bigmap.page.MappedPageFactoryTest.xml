@@ -1,10 +1,10 @@
 <?xml version="1.1" encoding="UTF-8"?>
-<testsuite name="com.ctriposs.bigmap.page.MappedPageFactoryTest" tests="4" failures="0" errors="0" timestamp="1970-01-01T00:00:00" hostname="N9OL8YY4Y96NIBY" time="1.390483591769E9">
+<testsuite name="com.ctriposs.bigmap.page.MappedPageFactoryTest" tests="4" failures="0" errors="0" timestamp="1970-01-01T00:00:00" hostname="N9OL8YY4Y96NIBY" time="1.390498659687E9">
   <properties/>
-  <testcase name="testSingleThread" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="5.481"/>
-  <testcase name="testGetBackPageFileSet" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="0.0050"/>
-  <testcase name="testGetBackPageFileSize" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="0.042"/>
-  <testcase name="testMultiThreads" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="3.176"/>
+  <testcase name="testSingleThread" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="5.486"/>
+  <testcase name="testGetBackPageFileSet" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="0.0070"/>
+  <testcase name="testGetBackPageFileSize" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="0.041"/>
+  <testcase name="testMultiThreads" classname="com.ctriposs.bigmap.page.MappedPageFactoryTest" time="2.974"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/mapped_page_factory_test/test_single_thread\page-0.dat was just deleted.
 [Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/mapped_page_factory_test/test_single_thread\page-1.dat was just deleted.

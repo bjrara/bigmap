@@ -57,6 +57,10 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	// max data slot length
 	public final static int MAX_DATA_SLOT_LENGTH = 1 << MAX_DATA_SLOT_LENGTH_BITS;
 	
+	// how many consecutive lengths can be mapped to one free entry array item
+	public final static int FREE_ENTRY_ARRAY_ITEM_BITS = 4; // 16
+	public final static int FREE_ENTRY_ARRAY_SIZE = MAX_DATA_SLOT_LENGTH >> FREE_ENTRY_ARRAY_ITEM_BITS;
+	
 	// 2 ^ 4 = 16
 	final static int META_DATA_ITEM_LENGTH_BITS = 4;
 	// size in bytes of a meta data page
@@ -145,9 +149,14 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		return totalFreeSlotSize.get();
 	}
 	
+	public int mapLengthToFreeEntryArrayIndex(int length) {
+		return (int)Calculator.div(length - 1, FREE_ENTRY_ARRAY_ITEM_BITS);
+	}
+	
 	public long getTotalFreeSlotSizeByLength(int length) {
-		if (length < 1 || length > MAX_DATA_SLOT_LENGTH) return -1;
-		return this.freeEntries[length - 1].totalSlotSize;
+		int index = mapLengthToFreeEntryArrayIndex(length);
+		if (index < 0 || index >= FREE_ENTRY_ARRAY_SIZE) return -1;
+		return this.freeEntries[index].totalSlotSize;
 	}
 	
 	// Get total number of free entries
@@ -162,8 +171,9 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	
 	// Get total number of free entries with specific length
 	public long getFreeEntryCountByLength(int length) {
-		if (length < 1 || length > MAX_DATA_SLOT_LENGTH) return -1;
-		return this.freeEntries[length - 1].count;
+		int index = mapLengthToFreeEntryArrayIndex(length);
+		if (index < 0 || index >= FREE_ENTRY_ARRAY_SIZE) return -1;
+		return this.freeEntries[index].count;
 	}
 	
 	public MapEntryFactoryImpl(String mapDir, String mapName) throws IOException {
@@ -181,8 +191,8 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		}
 		
 		freeEntryIndexSet = new ConcurrentSkipListSet<Integer>(); // size sorted free list
-		freeEntries = new FreeEntry[MAX_DATA_SLOT_LENGTH];
-		for(int i = 0; i < MAX_DATA_SLOT_LENGTH; i++) {
+		freeEntries = new FreeEntry[FREE_ENTRY_ARRAY_SIZE];
+		for(int i = 0; i < FREE_ENTRY_ARRAY_SIZE; i++) {
 			freeEntries[i] = new FreeEntry();
 		}
 		
@@ -263,15 +273,16 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 
 	public MapEntry acquire(int length) throws IOException {
 		// length check
-		if (length <= 0 || length > MAX_DATA_SLOT_LENGTH) throw new IllegalArgumentException(length + " <= 0 or > max allowed data slot length " + MAX_DATA_SLOT_LENGTH);
+		int fIndex = mapLengthToFreeEntryArrayIndex(length);
+		if (fIndex < 0 || fIndex >= FREE_ENTRY_ARRAY_SIZE) throw new IllegalArgumentException(length + " <= 0 or > max allowed data slot length " + MAX_DATA_SLOT_LENGTH);
 		
 		// metrics
 		this.totalRealUsedSlotSize.addAndGet(length);
 		this.totalAcquireCounter.incrementAndGet();
 		
 		// find exact match
-		MapEntry freeEntry = findFreeEntryByLength(length, length);
-		
+		MapEntry freeEntry = findFreeEntryByLength(fIndex, length);
+
 		if (freeEntry != null) {
 			this.totalExactMatchReuseCounter.incrementAndGet();
 			freeEntry.MarkInUse();
@@ -280,12 +291,13 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		}
 		
 		// find within length + 1 -> 2 * len (so we will waste at most half free space)
-		if (length < MAX_DATA_SLOT_LENGTH) {
-			int fromIndex = length + 1;
-			int toIndex = length * 2 < MAX_DATA_SLOT_LENGTH ? length * 2 : MAX_DATA_SLOT_LENGTH;
+		if (fIndex < FREE_ENTRY_ARRAY_SIZE - 1) {
+			int fromIndex = fIndex + 1;
+			int dIndex = fIndex == 0 ? 1 : fIndex * 2;
+			int toIndex = dIndex < FREE_ENTRY_ARRAY_SIZE - 1 ? dIndex : FREE_ENTRY_ARRAY_SIZE - 1;
 			SortedSet<Integer> freeEntryIndexCandidates = freeEntryIndexSet.subSet(fromIndex, true, toIndex, true);
-			for(int index : freeEntryIndexCandidates) {
-				freeEntry = findFreeEntryByLength(index, length);
+			for(int freeIndex : freeEntryIndexCandidates) {
+				freeEntry = findFreeEntryByLength(freeIndex, length);
 				if (freeEntry != null) {
 					this.totalApproximateMatchReuseCounter.incrementAndGet();
 					freeEntry.MarkInUse();
@@ -310,35 +322,49 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		return new MapEntry(index, indexItemOffset, indexPage, this.dataPageFactory);
 	}
 	
-	private MapEntry findFreeEntryByLength(int length, int realLength) throws IOException {
-		FreeEntry freeEntry = freeEntries[length - 1];
+	private MapEntry findFreeEntryByLength(int index, int realLength) throws IOException {
+		FreeEntry freeEntry = freeEntries[index];
 		if (freeEntry.count > 0) { // possible candidate
 			synchronized(freeEntry) {
 				
 				if (freeEntry.count > 0) {
 					
+					FreeNode p = freeEntry.first;
+					FreeNode q = p;
+					
+					// find a node with right size
+					while(p != null && p.size < realLength) {
+						q = p;
+						p = p.next;
+					}
+					
+					if (p == null) return null; // no luck
+					
 					// Get first free slot
-					FreeNode fNode = freeEntry.first;
-					freeEntry.first = fNode.next;
-					fNode.next = null;
+					if (p == freeEntry.first) {
+						freeEntry.first = p.next;
+					} else {
+						q.next = p.next;
+						p.next = null; // ready for GC
+					}
 					
 					// metrics
 					this.freeEntryCount.decrementAndGet();
 					freeEntry.count --;
-					freeEntry.totalSlotSize -= length;
-					totalFreeSlotSize.addAndGet(length * -1);
+					freeEntry.totalSlotSize -= p.size;
+					totalFreeSlotSize.addAndGet(p.size * -1);
 					
 					// reuse the free entry
 					// remove the free slot from the free list
-					long indexPageIndex = Calculator.div(fNode.index, INDEX_ITEMS_PER_PAGE_BITS);
+					long indexPageIndex = Calculator.div(p.index, INDEX_ITEMS_PER_PAGE_BITS);
 					IMappedPage indexPage = indexPageFactory.acquirePage(indexPageIndex);
-					int indexItemOffset = (int)(Calculator.mul(Calculator.mod(fNode.index, INDEX_ITEMS_PER_PAGE_BITS), INDEX_ITEM_LENGTH_BITS));
+					int indexItemOffset = (int)(Calculator.mul(Calculator.mod(p.index, INDEX_ITEMS_PER_PAGE_BITS), INDEX_ITEM_LENGTH_BITS));
 					
-					MapEntry mapEntry = new MapEntry(fNode.index, realLength, indexItemOffset, indexPage, this.dataPageFactory);
+					MapEntry mapEntry = new MapEntry(p.index, realLength, indexItemOffset, indexPage, this.dataPageFactory);
 					
 					// update freeEntryIndexSet if there is no free slot with specific size
 					if (freeEntry.count == 0) {
-						this.freeEntryIndexSet.remove(mapEntry.getSlotSize());
+						this.freeEntryIndexSet.remove(index);
 					}
 					
 					return mapEntry;
@@ -351,7 +377,9 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	
 	// release a slot to the free list for reuse later
 	public void release(MapEntry me) throws IOException {
-		FreeEntry freeEntry = freeEntries[me.getSlotSize()  - 1];
+		int slotSize = me.getSlotSize();
+		int index = this.mapLengthToFreeEntryArrayIndex(slotSize);
+		FreeEntry freeEntry = freeEntries[index];
 
 		synchronized(freeEntry) {
 			
@@ -359,13 +387,13 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 			
 			FreeNode fNode = new FreeNode();
 			fNode.index = me.getIndex();
+			fNode.size = slotSize;
 			fNode.next = freeEntry.first;
 			freeEntry.first = fNode;
 			
 			// increment counter;
 			this.freeEntryCount.incrementAndGet();
 			freeEntry.count++;
-			int slotSize = me.getSlotSize();
 			freeEntry.totalSlotSize += slotSize;
 			totalFreeSlotSize.addAndGet(slotSize);
 			this.totalRealUsedSlotSize.addAndGet(me.getRealEntryLength() * -1);
@@ -373,7 +401,7 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 			
 			// update freeEntryIndexSet if there is at least one free slot with specific size
 			if (firstFreeEntry) {
-				this.freeEntryIndexSet.add(me.getSlotSize());
+				this.freeEntryIndexSet.add(index);
 			}
 			me.markReleased();;
 		}
@@ -463,6 +491,7 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	
 	private static class FreeNode {
 		long index = -1;
+		int size = 0;
 		FreeNode next = null;
 	}
 
