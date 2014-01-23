@@ -1,0 +1,12 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<testsuite name="com.ctriposs.bigmap.PerfTest" tests="2" failures="0" errors="0" timestamp="1970-01-01T00:00:00" hostname="N9OL8YY4Y96NIBY" time="1.390483583062E9">
+  <properties/>
+  <testcase name="testPut" classname="com.ctriposs.bigmap.PerfTest" time="73.283"/>
+  <testcase name="testPutPerf" classname="com.ctriposs.bigmap.PerfTest" time="26.731"/>
+  <system-out><![CDATA[350
+Put/get 230 K operations per second
+Starting test
+Put/get 820 K operations per second
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

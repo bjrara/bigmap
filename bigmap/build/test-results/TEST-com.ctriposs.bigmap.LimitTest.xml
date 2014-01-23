@@ -1,0 +1,7 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<testsuite name="com.ctriposs.bigmap.LimitTest" tests="1" failures="0" errors="0" timestamp="2014-01-23T13:23:53" hostname="N9OL8YY4Y96NIBY" time="30.175">
+  <properties/>
+  <testcase name="limitTest" classname="com.ctriposs.bigmap.LimitTest" time="30.175"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

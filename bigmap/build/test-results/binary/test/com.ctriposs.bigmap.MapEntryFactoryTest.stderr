@@ -1,0 +1,14 @@
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\acquireAndReleaseTest\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\acquireAndReleaseTest\meta_data\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireAndReleaseBigSize\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireAndReleaseBigSize\meta_data\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireAndReleaseRandomSize\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireAndReleaseRandomSize\meta_data\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquiredAndReleaseDifferentSize\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquiredAndReleaseDifferentSize\meta_data\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireInvalidSize\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireInvalidSize\meta_data\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireAndReleaseSameSize\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestAcquireAndReleaseSameSize\meta_data\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestMultiThreading\index\page-0.dat was just deleted.
+[Test worker] INFO com.ctriposs.bigmap.page.MappedPageFactoryImpl - Page file d:/bigmap_test/bigmap/unit/map_entry_pool_test\TestMultiThreading\meta_data\page-0.dat was just deleted.

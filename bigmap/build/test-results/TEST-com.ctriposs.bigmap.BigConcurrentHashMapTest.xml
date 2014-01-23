@@ -1,0 +1,29 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<testsuite name="com.ctriposs.bigmap.BigConcurrentHashMapTest" tests="19" failures="0" errors="0" timestamp="2014-01-23T13:23:44" hostname="N9OL8YY4Y96NIBY" time="9.823">
+  <properties/>
+  <testcase name="testGet" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="1.836"/>
+  <testcase name="testReplaceValue2" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="2.197"/>
+  <testcase name="testClear" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.5"/>
+  <testcase name="testLoop" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.403"/>
+  <testcase name="testSize" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.517"/>
+  <testcase name="testConstructor1" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.0"/>
+  <testcase name="testConstructor2" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.0"/>
+  <testcase name="testConstructor3" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.0"/>
+  <testcase name="testContainsKey" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.177"/>
+  <testcase name="testPutIfAbsent" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.3"/>
+  <testcase name="testReplace2" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.177"/>
+  <testcase name="testPutIfAbsent2" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.27"/>
+  <testcase name="testRemove2" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.223"/>
+  <testcase name="testReplace" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.197"/>
+  <testcase name="testConcurrency" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="1.951"/>
+  <testcase name="testContainsValue_NullPointerException" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.195"/>
+  <testcase name="testReplaceValue" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.29"/>
+  <testcase name="testIsEmpty" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.172"/>
+  <testcase name="testRemove" classname="com.ctriposs.bigmap.BigConcurrentHashMapTest" time="0.352"/>
+  <system-out><![CDATA[Time to insert: 836ms.
+Time to insert: 627ms.
+Mismatch :0
+Time to read: 218 ms.
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
