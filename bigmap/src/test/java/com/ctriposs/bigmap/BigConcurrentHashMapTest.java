@@ -73,7 +73,7 @@ public class BigConcurrentHashMapTest {
      */
 	@Test
     public void testIsEmpty() throws IOException {
-        map = new BigConcurrentHashMapImpl("testDir", "testIsEmpty");
+        map = new BigConcurrentHashMapImpl(testDir, "testIsEmpty");
         assertTrue(map.isEmpty());
     }
 	
