@@ -277,13 +277,8 @@ public class BigConcurrentHashMapTest {
 
 		@Override
 		public void run() {
-			try {
-				for (int i = 0; i < count; i++) {
-					cache.put(String.valueOf(start + i).getBytes(), ("A slightly longer string for testing " + (start + i)).getBytes());
-				}
-			}
-			catch (IOException ex) {
-				ex.printStackTrace();
+			for (int i = 0; i < count; i++) {
+				cache.put(String.valueOf(start + i).getBytes(), ("A slightly longer string for testing " + (start + i)).getBytes());
 			}
 		}
     }

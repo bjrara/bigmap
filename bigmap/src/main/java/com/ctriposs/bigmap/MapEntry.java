@@ -22,7 +22,7 @@ public class MapEntry {
 	final static int INDEX_ITEM_MAP_ENTRY_VALUE_LENGTH_OFFSET = 20;
 	final static int INDEX_ITEM_MAP_ENTRY_CREATED_TIME_OFFSET = 24;
 	final static int INDEX_ITEM_MAP_ENTRY_LAST_ACCESS_TIME_OFFSET = 32;
-	final static int INDEX_ITEM_MAP_ENTRY_EXPIRE_TIME_OFFSET = 40;
+	final static int INDEX_ITEM_MAP_ENTRY_TIME_TO_LIVE_OFFSET = 40;
 	final static int INDEX_ITEM_MAP_ENTRY_STATUS = 60;
 	
 	private IMappedPage indexPage;
@@ -99,12 +99,12 @@ public class MapEntry {
 		indexPage.setDirty(true);
 	}
 	
-	public long getExpireTime() {
-		return indexPage.getLocal().getLong(indexItemOffset + INDEX_ITEM_MAP_ENTRY_EXPIRE_TIME_OFFSET);
+	public long getTimeToLive() {
+		return indexPage.getLocal().getLong(indexItemOffset + INDEX_ITEM_MAP_ENTRY_TIME_TO_LIVE_OFFSET);
 	}
 	
-	public void putExpireTime(long expireTime) {
-		indexPage.getLocal().putLong(indexItemOffset + INDEX_ITEM_MAP_ENTRY_EXPIRE_TIME_OFFSET, expireTime);
+	public void putTimeToLive(long ttlInMs) {
+		indexPage.getLocal().putLong(indexItemOffset + INDEX_ITEM_MAP_ENTRY_TIME_TO_LIVE_OFFSET, ttlInMs);
 		indexPage.setDirty(true);
 	}
 	

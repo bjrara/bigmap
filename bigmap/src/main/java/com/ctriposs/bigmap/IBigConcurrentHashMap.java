@@ -20,14 +20,17 @@ public interface IBigConcurrentHashMap extends Closeable {
 	public void clear();
 	
     /**
-     * Returns the value of the mapping with the specified key.
+     * Returns the value to which the specified key is mapped,
+     * or {@code null} if this map contains no mapping for the key.
      *
-     * @param key the key.
-     * @throws IOException exception throws during file IO operation 
-     * @return the value of the mapping with the specified key, or {@code null}
-     *         if no mapping for the specified key is found.
+     * <p>More formally, if this map contains a mapping from a key
+     * {@code k} to a value {@code keys} such that {@code key.equals(k)},
+     * then this method returns {@code keys}; otherwise it returns
+     * {@code null}.  (There can be at most one such mapping.)
+     * @throws RuntimeException throws if file IO operation fail
+     * @throws NullPointerException if the specified key is null
      */
-	public byte[] get(byte[] key) throws IOException;
+	public byte[] get(byte[] key);
 	
     /**
      * Returns whether this map is empty.
@@ -39,24 +42,38 @@ public interface IBigConcurrentHashMap extends Closeable {
 	public boolean isEmpty();
 	
     /**
-     * Maps the specified key to the specified value.
+     * Maps the specified key to the specified value in this table for the specified duration.
+     * If the map previously contained a mapping for the key, the old value is
+     * replaced by the specified value.
+     * Neither the key nor the value can be null.
      *
-     * @param key   the key.
-     * @param value the value.
-     * @throws IOException exception throws during file IO operation
-     * @return the value of any previous mapping with the specified key or
-     *         {@code null} if there was no such mapping.
+     * <p> The value can be retrieved by calling the <tt>get</tt> method
+     * with a key that is equal to the original key.
+     *
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     * @param ttlInMs the time in ms during which the entry can stay in the map (time-to-live). When
+     * this time has elapsed, the entry will be evicted from the map automatically. A value of 0 for
+     * this argument means "forever", i.e. <tt>put(key, value, 0)</tt> is equivalent to
+     * <tt>put(key, value).
+     * @return the previous value associated with <tt>key</tt>, or
+     *         <tt>null</tt> if there was no mapping for <tt>key</tt>
+     * @throws RuntimeException throws if file IO operation fail
+     * @throws NullPointerException if the specified key or value is null
      */
-	public byte[] put(byte[] key, byte[] value) throws IOException;
+	public byte[] put(byte[] key, byte[] value, long ttlInMs);
 	
     /**
-     * Removes the mapping from this map
+     * Removes the key (and its corresponding value) from this map.
+     * This method does nothing if the key is not in the map.
      *
-     * @param key to remove
-     * @throws IOException exception throws during file IO operation
-     *  @return value contained under this key, or null if value did not exist
+     * @param  key the key that needs to be removed
+     * @return the previous value associated with <tt>key</tt>, or
+     *         <tt>null</tt> if there was no mapping for <tt>key</tt>
+     * @throws RuntimeException throws if file IO operation fail
+     * @throws NullPointerException if the specified key is null
      */
-	public byte[] remove(byte[] key) throws IOException;
+	public byte[] remove(byte[] key);
 	
     /**
      * Returns the number of elements in this map.

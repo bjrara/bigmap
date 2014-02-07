@@ -186,12 +186,29 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             if (count != 0) { // read-volatile
 	        	lock();
 	        	try {
-	                HashEntry e = getFirst(hash);
+	                HashEntry[] tab = table;
+	                int index = hash & (tab.length - 1);
+	                HashEntry e = tab[index];
 	                while (e != null) {
 	                	MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
 	                    if (e.hash == hash && Arrays.equals(key, me.getEntryKey())) {
-	                    	me.putLastAccessedTime(System.currentTimeMillis());
-	                    	return me.getEntryValue();
+	                    	
+	                    	// has the entry expired?
+	                    	long ttlInMs = me.getTimeToLive();
+	                    	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
+	                    	
+	                    	if (expired) {
+	                    		this.mapEntryFactory.release(me);
+	                            
+	                            this.removeEntry(tab, index, e);
+	                            
+	                            count--;
+	                    		
+	                    		return null;
+	                    	} else {
+	                    		me.putLastAccessedTime(System.currentTimeMillis());
+	                    	    return me.getEntryValue();
+	                    	}
 	                    }
 	                    e = e.next;
 	                }
@@ -200,6 +217,22 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	        	}
             }
             return null;
+        }
+        
+        void removeEntry(HashEntry[] tab, int index, HashEntry e) {
+            HashEntry first = tab[index];
+            
+            if (first == e) {
+            	tab[index] = e.next;
+            	e.next = null; // ready for GC
+            } else {
+            	HashEntry p = first;
+            	while(p.next != e) {
+            		p = p.next;
+            	}
+            	p.next = e.next;
+            	e.next = null; // ready for GC
+            }
         }
         
         boolean containsKey(final byte[] key, int hash) throws IOException {
@@ -289,7 +322,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
         }
         
 
-        byte[] put(byte[] key, int hash, byte[] value, boolean onlyIfAbsent) throws IOException {
+        byte[] put(byte[] key, int hash, byte[] value, boolean onlyIfAbsent, long ttlInMs) throws IOException {
             lock();
             try {
                 int c = count;
@@ -321,6 +354,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                         me.putEntryKey(key);
                         me.putEntryValue(value);
                         me.putLastAccessedTime(System.currentTimeMillis());
+                        me.putTimeToLive(ttlInMs);
                         
                         e.index = me.getIndex();
                     }
@@ -334,6 +368,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                     me.putEntryKey(key);
                     me.putEntryValue(value);
                     me.putLastAccessedTime(System.currentTimeMillis());
+                    me.putTimeToLive(ttlInMs);
                     
                     tab[index] = new HashEntry(me.getIndex(), hash, first);
                     count = c; // write-volatile
@@ -376,6 +411,33 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             table = newTable;
         }
         
+        // Purge expired entries
+        void purge() throws IOException {
+        	lock();
+        	try {
+	        	for(int index = 0; index < table.length; index++) {
+	        		HashEntry e = table[index];
+	        		while(e != null) {
+	        			MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
+	        			
+	                	// has the entry expired?
+	                	long ttlInMs = me.getTimeToLive();
+	                	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
+	                	
+	                	if (expired) {
+	                		this.mapEntryFactory.release(me);
+	                		
+	                		this.removeEntry(table, index, e);
+	                	}
+	        			
+	        			e = e.next;
+	        		}
+	        	}
+        	} finally {
+        		unlock();
+        	}
+        }
+        
         
         /**
          * Remove; match on key only if value null, else match both.
@@ -387,8 +449,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                 int c = count - 1;
                 HashEntry[] tab = table;
                 int index = hash & (tab.length - 1);
-                HashEntry first = tab[index];
-                HashEntry e = first;
+                HashEntry e = tab[index];
                 MapEntry me = null;
                 while (e != null) {
                 	me = this.mapEntryFactory.findMapEntryByIndex(e.index);
@@ -406,18 +467,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                         oldValue = me.getEntryValue();
                         this.mapEntryFactory.release(me);
                         
-                        // Remove the entry node
-                        if (first == e) {
-                        	tab[index] = e.next;
-                        	e.next = null; // ready for GC
-                        } else {
-                        	HashEntry p = first;
-                        	while(p.next != e) {
-                        		p = p.next;
-                        	}
-                        	p.next = e.next;
-                        	e.next = null; // ready for GC
-                        }
+                        this.removeEntry(tab, index, e);
                         
                         count = c; // write-volatile
                     }
@@ -566,15 +616,19 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * {@code k} to a value {@code keys} such that {@code key.equals(k)},
      * then this method returns {@code keys}; otherwise it returns
      * {@code null}.  (There can be at most one such mapping.)
-     * @throws IOException exception throws during file IO operation 
+     * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key is null
      */
 	@Override
-	public byte[] get(byte[] key) throws IOException {
+	public byte[] get(byte[] key) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		final int hash = Arrays.hashCode(key);
 		
-		return segmentFor(hash).get(key, hash);
+		try {
+			return segmentFor(hash).get(key, hash);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to get key in the map", e);
+		}
 	}
 	
     /**
@@ -584,17 +638,57 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @return <tt>true</tt> if and only if the specified object
      *         is a key in this table, as determined by the
      *         <tt>equals</tt> method; <tt>false</tt> otherwise.
-     * @throws IOException exception throws during file IO operation 
+     * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key is null
      */
-	public boolean containsKey(byte[] key) throws IOException {
+	public boolean containsKey(byte[] key) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		final int hash = Arrays.hashCode(key);
-		return segmentFor(hash).containsKey(key, hash);
+		try {
+			return segmentFor(hash).containsKey(key, hash);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to run ontainsKey operation on the map", e);
+		}
+	}
+	
+    /**
+     * Maps the specified key to the specified value in this table for the specified duration.
+     * If the map previously contained a mapping for the key, the old value is
+     * replaced by the specified value.
+     * Neither the key nor the value can be null.
+     *
+     * <p> The value can be retrieved by calling the <tt>get</tt> method
+     * with a key that is equal to the original key.
+     *
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     * @param ttlInMs the time in ms during which the entry can stay in the map (time-to-live). When
+     * this time has elapsed, the entry will be evicted from the map automatically. A value of 0 for
+     * this argument means "forever", i.e. <tt>put(key, value, 0)</tt> is equivalent to
+     * <tt>put(key, value).
+     * @return the previous value associated with <tt>key</tt>, or
+     *         <tt>null</tt> if there was no mapping for <tt>key</tt>
+     * @throws RuntimeException throws if file IO operation fail
+     * @throws NullPointerException if the specified key or value is null
+     */
+	@Override
+	public byte[] put(byte[] key, byte[] value, long ttlInMs) {
+		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
+		if (value == null || value.length == 0) throw new NullPointerException("value is null or empty");
+		if (ttlInMs < 0) throw new IllegalArgumentException("Invalid time to live value " + ttlInMs + ", it must be >= 0.");
+		final int hash = Arrays.hashCode(key);
+		
+		try {
+			return segmentFor(hash).put(key, hash, value, false, ttlInMs);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to put key/value in the map", e);
+		}
 	}
 	
     /**
      * Maps the specified key to the specified value in this table.
+     * If the map previously contained a mapping for the key, the old value is
+     * replaced by the specified value.
      * Neither the key nor the value can be null.
      *
      * <p> The value can be retrieved by calling the <tt>get</tt> method
@@ -604,16 +698,42 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @param value value to be associated with the specified key
      * @return the previous value associated with <tt>key</tt>, or
      *         <tt>null</tt> if there was no mapping for <tt>key</tt>
-     * @throws IOException exception throws during file IO operation
+     * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key or value is null
      */
-	@Override
-	public byte[] put(byte[] key, byte[] value) throws IOException {
+	public byte[] put(byte[] key, byte[] value) {
+		return this.put(key, value, 0L);
+	}
+	
+    /**
+     * Maps the specified key to the specified value in this table for the specified duration only if the key is absent.
+     * Neither the key nor the value can be null.
+     *
+     * <p> The value can be retrieved by calling the <tt>get</tt> method
+     * with a key that is equal to the original key.
+     *
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     * @param ttlInMs the time in ms during which the entry can stay in the map (time-to-live). When
+     * this time has elapsed, the entry will be evicted from the map automatically. A value of 0 for
+     * this argument means "forever", i.e. <tt>putIfAbsent(key, value, 0)</tt> is equivalent to
+     * <tt>putIfAbsent(key, value).
+     * @return the previous value associated with <tt>key</tt>, or
+     *         <tt>null</tt> if there was no mapping for <tt>key</tt>
+     * @throws RuntimeException throws if file IO operation fail
+     * @throws NullPointerException if the specified key or value is null
+     */
+	public byte[] putIfAbsent(byte[] key, byte[] value, long ttlInMs) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		if (value == null || value.length == 0) throw new NullPointerException("value is null or empty");
+		if (ttlInMs < 0) throw new IllegalArgumentException("Invalid time to live value " + ttlInMs + ", it must be >= 0.");
 		final int hash = Arrays.hashCode(key);
 		
-		return segmentFor(hash).put(key, hash, value, false);
+		try {
+			return segmentFor(hash).put(key, hash, value, true, ttlInMs);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to putIfAbsent key/value in the map", e);
+		}
 	}
 	
     /**
@@ -627,15 +747,11 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @param value value to be associated with the specified key
      * @return the previous value associated with <tt>key</tt>, or
      *         <tt>null</tt> if there was no mapping for <tt>key</tt>
-     * @throws IOException exception throws during file IO operation
+     * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key or value is null
      */
-	public byte[] putIfAbsent(byte[] key, byte[] value) throws IOException {
-		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
-		if (value == null || value.length == 0) throw new NullPointerException("value is null or empty");
-		final int hash = Arrays.hashCode(key);
-		
-		return segmentFor(hash).put(key, hash, value, true);
+	public byte[] putIfAbsent(byte[] key, byte[] value) {
+		return this.putIfAbsent(key, value, 0L);
 	}
 	
     /**
@@ -645,15 +761,19 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @param  key the key that needs to be removed
      * @return the previous value associated with <tt>key</tt>, or
      *         <tt>null</tt> if there was no mapping for <tt>key</tt>
-     * @throws IOException exception throws during file IO operation
+     * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key is null
      */
 	@Override
-	public byte[] remove(byte[] key) throws IOException {
+	public byte[] remove(byte[] key) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		final int hash = Arrays.hashCode(key);
 		
-		return segmentFor(hash).remove(key, hash, null);
+		try {
+			return segmentFor(hash).remove(key, hash, null);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to remove key in the map", e);
+		}
 	}
 	
     /**
@@ -663,15 +783,19 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @param  key the key that needs to be removed
      * @return the previous value associated with <tt>key</tt>, or
      *         <tt>null</tt> if there was no mapping for <tt>key</tt>
-     * @throws IOException exception throws during file IO operation
+     * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key is null
      */
-	public boolean remove(byte[] key, byte[] value) throws IOException {
+	public boolean remove(byte[] key, byte[] value) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		if (value == null || value.length == 0) throw new NullPointerException("value is null or empty");
 		final int hash = Arrays.hashCode(key);
 		
-		return segmentFor(hash).remove(key, hash, value) != null;
+		try {
+			return segmentFor(hash).remove(key, hash, value) != null;
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to remove key/value in the map", e);
+		}
 	}
 	
     /**
@@ -679,13 +803,17 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      *
      * @throws NullPointerException if any of the arguments are null
      */
-	public boolean replace(byte[] key, byte[] oldValue, byte[] newValue) throws IOException {
+	public boolean replace(byte[] key, byte[] oldValue, byte[] newValue) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		if (oldValue == null || oldValue.length == 0) throw new NullPointerException("oldValue is null or empty");
 		if (newValue == null || newValue.length == 0) throw new NullPointerException("newValue is null or empty");
 		final int hash = Arrays.hashCode(key);
 		
-		return segmentFor(hash).replace(key, hash, oldValue, newValue);
+		try {
+			return segmentFor(hash).replace(key, hash, oldValue, newValue);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to replace key/value in the map", e);
+		}
 	}
 	
     /**
@@ -693,12 +821,16 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      *
      * @throws NullPointerException if any of the arguments are null
      */
-	public byte[] replace(byte[] key, byte[] value) throws IOException {
+	public byte[] replace(byte[] key, byte[] value) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		if (value == null || value.length == 0) throw new NullPointerException("oldValue is null or empty");
 		final int hash = Arrays.hashCode(key);
 		
-		return segmentFor(hash).replace(key, hash, value);
+		try {
+			return segmentFor(hash).replace(key, hash, value);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to replace key/value in the map", e);
+		}
 	}
 	
     /**
