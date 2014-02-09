@@ -201,7 +201,7 @@ public class BigConcurrentHashMapTest {
 	@Test
     public void testConstructor1() throws IOException {
         try {
-            new BigConcurrentHashMapImpl(testDir, "testConstructor1", -1,0,1);
+            new BigConcurrentHashMapImpl(testDir, "testConstructor1", -1,0,1, 1000 * 60);
             shouldThrow();
         } catch(IllegalArgumentException e){}
     }
@@ -212,7 +212,7 @@ public class BigConcurrentHashMapTest {
 	@Test
     public void testConstructor2() throws IOException {
         try {
-            map = new BigConcurrentHashMapImpl(testDir, "testConstructor2", 1,0,-1);
+            map = new BigConcurrentHashMapImpl(testDir, "testConstructor2", 1,0,-1, 1000 * 60);
             shouldThrow();
         } catch(IllegalArgumentException e){}
     }

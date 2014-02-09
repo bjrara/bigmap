@@ -3,6 +3,7 @@ package com.ctriposs.bigmap;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
@@ -36,6 +37,11 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * otherwise specified in a constructor.
      */
     static final int DEFAULT_CONCURRENCY_LEVEL = 16;
+    
+    /**
+     * The default map entry expiration purge interval
+     */
+    static final int DEFAULT_PURGE_INTERVAL = 1000 * 60 * 20;
 
     /**
      * The maximum capacity, used if a higher value is implicitly
@@ -73,10 +79,15 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	/**
 	 * Factory managing the creation, recycle/reuse of map entries.
 	 */
-	private IMapEntryFactory mapEntryFactory;
+	final IMapEntryFactory mapEntryFactory;
 
+	/**
+	 * Expiration purge timer
+	 */
+	final Timer purgeTimer;
+	
     /* ---------------- Small Utilities -------------- */
-
+	
 
     /**
      * Returns the segment that should be used for key with given hash
@@ -186,6 +197,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             if (count != 0) { // read-volatile
 	        	lock();
 	        	try {
+	        		int c = count - 1;
 	                HashEntry[] tab = table;
 	                int index = hash & (tab.length - 1);
 	                HashEntry e = tab[index];
@@ -202,7 +214,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	                            
 	                            this.removeEntry(tab, index, e);
 	                            
-	                            count--;
+	                            count = c; // write-volatile
 	                    		
 	                    		return null;
 	                    	} else {
@@ -239,11 +251,32 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             if (count != 0) { // read-volatile
 	        	lock();
 		        try {
-	                HashEntry e = getFirst(hash);
+		        	int c = count - 1;
+	                HashEntry[] tab = table;
+	                int index = hash & (tab.length - 1);
+	                HashEntry e = tab[index];
 	                while (e != null) {
 	                	MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
-	                    if (e.hash == hash && Arrays.equals(key, me.getEntryKey()))
-	                        return true;
+	                    if (e.hash == hash && Arrays.equals(key, me.getEntryKey())) {
+	                    	
+	                    	// has the entry expired?
+	                    	long ttlInMs = me.getTimeToLive();
+	                    	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
+	                    	
+	                    	if (expired) {
+	                    		this.mapEntryFactory.release(me);
+	                            
+	                            this.removeEntry(tab, index, e);
+	                            
+	                            count = c; // write-volatile
+	                    		
+	                    		return false;
+	                    	} else {
+	                    		me.putLastAccessedTime(System.currentTimeMillis());
+	                    	    return true;
+	                    	}
+	                    	
+	                    }
 	                    e = e.next;
 	                }    
 	        	} finally {
@@ -253,7 +286,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             return false;
         }
         
-        boolean replace(byte[] key, int hash, byte[] oldValue, byte[] newValue) throws IOException {
+        boolean replace(byte[] key, int hash, byte[] oldValue, byte[] newValue, long ttlInMs) throws IOException {
             lock();
             try {
                 HashEntry e = getFirst(hash);
@@ -278,6 +311,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                     me.putEntryKey(key);
                     me.putEntryValue(newValue);
                     me.putLastAccessedTime(System.currentTimeMillis());
+                    me.putTimeToLive(ttlInMs);
                     
                     e.index = me.getIndex();
                 }
@@ -287,7 +321,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             }
         }
         
-        byte[] replace(byte[] key, int hash, byte[] newValue) throws IOException {
+        byte[] replace(byte[] key, int hash, byte[] newValue, long ttlInMs) throws IOException {
             lock();
             try {
                 HashEntry e = getFirst(hash);
@@ -312,6 +346,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                     me.putEntryKey(key);
                     me.putEntryValue(newValue);
                     me.putLastAccessedTime(System.currentTimeMillis());
+                    me.putTimeToLive(ttlInMs);
                     
                     e.index = me.getIndex();
                 }
@@ -424,13 +459,16 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	                	long ttlInMs = me.getTimeToLive();
 	                	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
 	                	
+	                	HashEntry next = e.next;
 	                	if (expired) {
 	                		this.mapEntryFactory.release(me);
 	                		
 	                		this.removeEntry(table, index, e);
+	                		
+	                		count--;
 	                	}
 	        			
-	        			e = e.next;
+	        			e = next;
 	        		}
 	        	}
         	} finally {
@@ -511,14 +549,15 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @param concurrencyLevel the estimated number of concurrently
      * updating threads. The implementation performs internal sizing
      * to try to accommodate this many threads.
+     * @param purgeIntervalInMs the map entry expiration purge interval in milliseconds
      * @throws IOException the exception throws if failed to operate on memory mapped files
      * @throws IllegalArgumentException if the initial capacity is
-     * negative or the load factor or concurrencyLevel are
+     * negative or the load factor or concurrencyLevel or purgeIntervalInMs are
      * nonpositive.
      */
 	public BigConcurrentHashMapImpl(String mapDir, String mapName, int initialCapacity,
-                                 float loadFactor, int concurrencyLevel) throws IOException {
-        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
+                                 float loadFactor, int concurrencyLevel, long purgeIntervalInMs) throws IOException {
+        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0 || purgeIntervalInMs <= 10)
             throw new IllegalArgumentException();
 
         
@@ -549,23 +588,47 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 
         for (int i = 0; i < this.segments.length; ++i)
             this.segments[i] = new Segment<byte[]>(cap, loadFactor, this.mapEntryFactory);
+            
+        purgeTimer = new Timer(mapName + "_purgeTimer");
+        purgeTimer.schedule(new PurgeTimerTask(), purgeIntervalInMs, purgeIntervalInMs);
 	}
+	
+	class PurgeTimerTask extends TimerTask {
+		AtomicBoolean running = new AtomicBoolean(false);
+		
+		@Override
+		public void run() {
+			try {
+				if (running.compareAndSet(false, true)) {
+					try {
+						purge();
+					} finally {
+						running.set(false);
+					}
+				}
+			} catch (Throwable t) {
+				logger.error("Fail to purge expired map entries", t);
+			}
+		}
+		
+	}
+	
 	
     /**
      * Creates a new, empty map with a default initial capacity (16),
-     * load factor (0.75) and concurrencyLevel (16).
+     * load factor (0.75), concurrencyLevel (16) and purge interval (20 minutes).
      * 
      * @param mapDir the target directory to store persisted map files
      * @param mapName the name of the map
      * @throws IOException the exception throws if failed to operate on memory mapped files
      */
     public BigConcurrentHashMapImpl(String mapDir, String mapName) throws IOException {
-        this(mapDir, mapName, DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
+        this(mapDir, mapName, DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, DEFAULT_PURGE_INTERVAL);
     }
 	
     /**
      * Creates a new, empty map with the specified initial capacity,
-     * and with default load factor (0.75) and concurrencyLevel (16).
+     * and with default load factor (0.75), concurrencyLevel (16) and purge interval (20 minutes).
      *
      * @param mapDir the target directory to store persisted map files
      * @param mapName the name of the map
@@ -576,7 +639,13 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * elements is negative.
      */
 	public BigConcurrentHashMapImpl(String mapDir, String mapName, int initialCapacity) throws IOException {
-        this(mapDir, mapName, initialCapacity, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL);
+        this(mapDir, mapName, initialCapacity, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, DEFAULT_PURGE_INTERVAL);
+	}
+	
+	void purge() throws IOException {
+		for(Segment<byte[]> segment : segments) {
+			segment.purge();
+		}
 	}
 	
     /**
@@ -723,6 +792,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * @throws RuntimeException throws if file IO operation fail
      * @throws NullPointerException if the specified key or value is null
      */
+	@Override
 	public byte[] putIfAbsent(byte[] key, byte[] value, long ttlInMs) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
 		if (value == null || value.length == 0) throw new NullPointerException("value is null or empty");
@@ -798,22 +868,8 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 		}
 	}
 	
-    /**
-     * 
-     *
-     * @throws NullPointerException if any of the arguments are null
-     */
 	public boolean replace(byte[] key, byte[] oldValue, byte[] newValue) {
-		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
-		if (oldValue == null || oldValue.length == 0) throw new NullPointerException("oldValue is null or empty");
-		if (newValue == null || newValue.length == 0) throw new NullPointerException("newValue is null or empty");
-		final int hash = Arrays.hashCode(key);
-		
-		try {
-			return segmentFor(hash).replace(key, hash, oldValue, newValue);
-		} catch (IOException e) {
-			throw new RuntimeException("Fail to replace key/value in the map", e);
-		}
+		return this.replace(key, oldValue, newValue, 0L);
 	}
 	
     /**
@@ -821,13 +877,37 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      *
      * @throws NullPointerException if any of the arguments are null
      */
-	public byte[] replace(byte[] key, byte[] value) {
+	public boolean replace(byte[] key, byte[] oldValue, byte[] newValue, long ttlInMs) {
 		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
-		if (value == null || value.length == 0) throw new NullPointerException("oldValue is null or empty");
+		if (oldValue == null || oldValue.length == 0) throw new NullPointerException("oldValue is null or empty");
+		if (newValue == null || newValue.length == 0) throw new NullPointerException("newValue is null or empty");
+		if (ttlInMs < 0) throw new IllegalArgumentException("Invalid time to live value " + ttlInMs + ", it must be >= 0.");
 		final int hash = Arrays.hashCode(key);
 		
 		try {
-			return segmentFor(hash).replace(key, hash, value);
+			return segmentFor(hash).replace(key, hash, oldValue, newValue, ttlInMs);
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to replace key/value in the map", e);
+		}
+	}
+	
+	public byte[] replace(byte[] key, byte[] value) {
+		return this.replace(key, value, 0L);
+	}
+	
+    /**
+     * 
+     *
+     * @throws NullPointerException if any of the arguments are null
+     */
+	public byte[] replace(byte[] key, byte[] value, long ttlInMs) {
+		if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
+		if (value == null || value.length == 0) throw new NullPointerException("oldValue is null or empty");
+		if (ttlInMs < 0) throw new IllegalArgumentException("Invalid time to live value " + ttlInMs + ", it must be >= 0.");
+		final int hash = Arrays.hashCode(key);
+		
+		try {
+			return segmentFor(hash).replace(key, hash, value, ttlInMs);
 		} catch (IOException e) {
 			throw new RuntimeException("Fail to replace key/value in the map", e);
 		}

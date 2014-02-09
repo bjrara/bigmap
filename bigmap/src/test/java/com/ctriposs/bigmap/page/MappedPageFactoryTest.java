@@ -292,6 +292,7 @@ public class MappedPageFactoryTest {
 				try {
 					pages[i] = this.pageFactory.acquirePage(i);
 				} catch (IOException e) {
+					e.printStackTrace();
 					fail("Got IOException when acquiring page " + i);
 				}
 			}

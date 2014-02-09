@@ -63,6 +63,27 @@ public interface IBigConcurrentHashMap extends Closeable {
      */
 	public byte[] put(byte[] key, byte[] value, long ttlInMs);
 	
+	
+    /**
+     * Maps the specified key to the specified value in this table for the specified duration only if the key is absent.
+     * Neither the key nor the value can be null.
+     *
+     * <p> The value can be retrieved by calling the <tt>get</tt> method
+     * with a key that is equal to the original key.
+     *
+     * @param key key with which the specified value is to be associated
+     * @param value value to be associated with the specified key
+     * @param ttlInMs the time in ms during which the entry can stay in the map (time-to-live). When
+     * this time has elapsed, the entry will be evicted from the map automatically. A value of 0 for
+     * this argument means "forever", i.e. <tt>putIfAbsent(key, value, 0)</tt> is equivalent to
+     * <tt>putIfAbsent(key, value).
+     * @return the previous value associated with <tt>key</tt>, or
+     *         <tt>null</tt> if there was no mapping for <tt>key</tt>
+     * @throws RuntimeException throws if file IO operation fail
+     * @throws NullPointerException if the specified key or value is null
+     */
+	public byte[] putIfAbsent(byte[] key, byte[] value, long ttlInMs);
+	
     /**
      * Removes the key (and its corresponding value) from this map.
      * This method does nothing if the key is not in the map.
