@@ -24,7 +24,8 @@ public class BigConcurrentHashMapTest {
      * @throws IOException 
      */
     private BigConcurrentHashMapImpl map5() throws IOException {
-    	BigConcurrentHashMapImpl map = new BigConcurrentHashMapImpl(testDir, "map5", 5);
+    	BigConfig config = new BigConfig().setInitialCapacity(5);
+    	BigConcurrentHashMapImpl map = new BigConcurrentHashMapImpl(testDir, "map5", config);
         assertTrue(map.isEmpty());
         map.put("1".getBytes(), "A".getBytes());
         map.put("2".getBytes(), "B".getBytes());
@@ -201,7 +202,8 @@ public class BigConcurrentHashMapTest {
 	@Test
     public void testConstructor1() throws IOException {
         try {
-            new BigConcurrentHashMapImpl(testDir, "testConstructor1", -1,0,1, 1000 * 60);
+        	BigConfig config = new BigConfig().setInitialCapacity(-1).setLoadFactor(0).setConcurrencyLevel(1).setPurgeIntervalInMs(1000 * 60);
+            map = new BigConcurrentHashMapImpl(testDir, "testConstructor1", config);
             shouldThrow();
         } catch(IllegalArgumentException e){}
     }
@@ -212,19 +214,21 @@ public class BigConcurrentHashMapTest {
 	@Test
     public void testConstructor2() throws IOException {
         try {
-            map = new BigConcurrentHashMapImpl(testDir, "testConstructor2", 1,0,-1, 1000 * 60);
+        	BigConfig config = new BigConfig().setInitialCapacity(1).setLoadFactor(0).setConcurrencyLevel(-1).setPurgeIntervalInMs(1000 * 60);
+            map = new BigConcurrentHashMapImpl(testDir, "testConstructor2", config);
             shouldThrow();
         } catch(IllegalArgumentException e){}
     }
 	
-	   /**
+	/**
      * Cannot create with only negative capacity
 	 * @throws IOException 
      */
 	@Test
     public void testConstructor3() throws IOException {
         try {
-            map = new BigConcurrentHashMapImpl(testDir, "testConstructor3", -1);
+        	BigConfig config = new BigConfig().setInitialCapacity(-1);
+            map = new BigConcurrentHashMapImpl(testDir, "testConstructor3", config);
             shouldThrow();
         } catch(IllegalArgumentException e){}
     }
@@ -236,7 +240,8 @@ public class BigConcurrentHashMapTest {
 	@Test
     public void testContainsValue_NullPointerException() throws IOException {
         try {
-        	map = new BigConcurrentHashMapImpl(testDir, "testContainsValue_NullPointerException", 5);;
+        	BigConfig config = new BigConfig().setInitialCapacity(5);
+        	map = new BigConcurrentHashMapImpl(testDir, "testContainsValue_NullPointerException", config);;
             map.containsKey(null);
             shouldThrow();
         } catch(NullPointerException e){}

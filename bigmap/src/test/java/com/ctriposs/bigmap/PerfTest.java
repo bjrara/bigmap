@@ -44,7 +44,8 @@ public class PerfTest {
 	public void testPut() throws IOException, ClassNotFoundException {
 		int count = 4000000;
 		
-		map = new BigConcurrentHashMapImpl(testDir, "testPut", count, BigConcurrentHashMapImpl.DEFAULT_LOAD_FACTOR, 128, BigConcurrentHashMapImpl.DEFAULT_PURGE_INTERVAL);
+		BigConfig config = new BigConfig().setInitialCapacity(count).setConcurrencyLevel(128);
+		map = new BigConcurrentHashMapImpl(testDir, "testPut", config);
 		
 		long start = System.nanoTime();
 		
@@ -86,7 +87,8 @@ public class PerfTest {
 		
 		System.out.println("Starting test");
 		
-		map = new BigConcurrentHashMapImpl(testDir, "testPutPerf", COUNT, BigConcurrentHashMapImpl.DEFAULT_LOAD_FACTOR, 64, BigConcurrentHashMapImpl.DEFAULT_PURGE_INTERVAL);
+		BigConfig config = new BigConfig().setInitialCapacity(COUNT).setConcurrencyLevel(64);
+		map = new BigConcurrentHashMapImpl(testDir, "testPutPerf", config);
 		
 		final int COUNT = 5000000;
 		final String[] users = new String[COUNT];

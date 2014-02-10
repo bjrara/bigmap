@@ -120,7 +120,6 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             this.next = next;
         }
 
-        @SuppressWarnings("unchecked")
         static HashEntry[] newArray(int i) {
             return new HashEntry[i];
         }
@@ -208,11 +207,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	                	MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
 	                    if (e.hash == hash && Arrays.equals(key, me.getEntryKey())) {
 	                    	
-	                    	// has the entry expired?
-	                    	long ttlInMs = me.getTimeToLive();
-	                    	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
-	                    	
-	                    	if (expired) {
+	                    	if (this.isExpired(me)) {
 	                    		this.mapEntryFactory.release(me);
 	                            
 	                            this.removeEntry(tab, index, e);
@@ -262,11 +257,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	                	MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
 	                    if (e.hash == hash && Arrays.equals(key, me.getEntryKey())) {
 	                    	
-	                    	// has the entry expired?
-	                    	long ttlInMs = me.getTimeToLive();
-	                    	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
-	                    	
-	                    	if (expired) {
+	                    	if (this.isExpired(me)) {
 	                    		this.mapEntryFactory.release(me);
 	                            
 	                            this.removeEntry(tab, index, e);
@@ -458,13 +449,9 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 		        		HashEntry e = table[index];
 		        		while(e != null) {
 		        			MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
-		        			
-		                	// has the entry expired?
-		                	long ttlInMs = me.getTimeToLive();
-		                	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
 		                	
 		                	HashEntry next = e.next;
-		                	if (expired) {
+		                	if (this.isExpired(me)) {
 		                		this.mapEntryFactory.release(me);
 		                		
 		                		this.removeEntry(table, index, e);
@@ -508,6 +495,11 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
                 if (e != null) {
                     if (value == null || Arrays.equals(value, me.getEntryValue())) {
                         oldValue = me.getEntryValue();
+                        
+	                	if (this.isExpired(me)) {
+	                		oldValue = null;
+	                	}
+                        
                         this.mapEntryFactory.release(me);
                         
                         this.removeEntry(tab, index, e);
@@ -519,6 +511,13 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             } finally {
                 unlock();
             }
+        }
+        
+        boolean isExpired(MapEntry me) {
+        	// has the entry expired?
+        	long ttlInMs = me.getTimeToLive();
+        	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
+        	return expired;
         }
         
         void clear() {
@@ -546,35 +545,25 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      *
      * @param mapDir the target directory to store persisted map files
      * @param mapName the name of the map
-     * @param initialCapacity the initial capacity. The implementation
-     * performs internal sizing to accommodate this many elements.
-     * @param loadFactor  the load factor threshold, used to control resizing.
-     * Resizing may be performed when the average number of elements per
-     * bin exceeds this threshold.
-     * @param concurrencyLevel the estimated number of concurrently
-     * updating threads. The implementation performs internal sizing
-     * to try to accommodate this many threads.
-     * @param purgeIntervalInMs the map entry expiration purge interval in milliseconds
+     * @param config the hash map configuration including load factor, initial capacity,
+     * concurrency level and purgeInterval in milliseconds.
      * @throws IOException the exception throws if failed to operate on memory mapped files
      * @throws IllegalArgumentException if the initial capacity is
      * negative or the load factor or concurrencyLevel or purgeIntervalInMs are
      * nonpositive.
      */
-	public BigConcurrentHashMapImpl(String mapDir, String mapName, int initialCapacity,
-                                 float loadFactor, int concurrencyLevel, long purgeIntervalInMs) throws IOException {
-        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0 || purgeIntervalInMs <= 10)
+	public BigConcurrentHashMapImpl(String mapDir, String mapName, BigConfig config) throws IOException {
+        if (!(config.getLoadFactor() > 0) || config.getInitialCapacity() < 0 || 
+        		config.getConcurrencyLevel() <= 0 || config.getPurgeIntervalInMs() <= 10)
             throw new IllegalArgumentException();
 
         
         this.mapEntryFactory = new MapEntryFactoryImpl(mapDir, mapName);
-        
-        if (concurrencyLevel > MAX_SEGMENTS)
-            concurrencyLevel = MAX_SEGMENTS;
 
         // Find power-of-two sizes best matching arguments
         int sshift = 0;
         int ssize = 1;
-        while (ssize < concurrencyLevel) {
+        while (ssize < config.getConcurrencyLevel()) {
             ++sshift;
             ssize <<= 1;
         }
@@ -582,20 +571,30 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
         segmentMask = ssize - 1;
         this.segments = Segment.newArray(ssize);
 
-        if (initialCapacity > MAXIMUM_CAPACITY)
-            initialCapacity = MAXIMUM_CAPACITY;
-        int c = initialCapacity / ssize;
-        if (c * ssize < initialCapacity)
+        int c = config.getInitialCapacity() / ssize;
+        if (c * ssize < config.getInitialCapacity())
             ++c;
         int cap = 1;
         while (cap < c)
             cap <<= 1;
 
         for (int i = 0; i < this.segments.length; ++i)
-            this.segments[i] = new Segment<byte[]>(cap, loadFactor, this.mapEntryFactory);
+            this.segments[i] = new Segment<byte[]>(cap, config.getLoadFactor(), this.mapEntryFactory);
             
         purgeTimer = new Timer(mapName + "_purgeTimer");
-        purgeTimer.schedule(new PurgeTimerTask(), purgeIntervalInMs, purgeIntervalInMs);
+        purgeTimer.schedule(new PurgeTimerTask(), config.getPurgeIntervalInMs(), config.getPurgeIntervalInMs());
+	}
+	
+    /**
+	* Creates a new, empty map with default initial capacity (16), load factor (0.75), 
+	* concurrencyLevel (16) and purgeIntervalInMs(20 minutes).
+	*
+	* @param mapDir the target directory to store persisted map files
+	* @param mapName the name of the map
+	* @throws IOException the exception throws if failed to operate on memory mapped files
+	*/
+	public BigConcurrentHashMapImpl(String mapDir, String mapName) throws IOException {
+		this(mapDir, mapName, new BigConfig());
 	}
 	
 	class PurgeTimerTask extends TimerTask {
@@ -617,52 +616,6 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 			}
 		}
 		
-	}
-	
-	
-    /**
-     * Creates a new, empty map with a default initial capacity (16),
-     * load factor (0.75), concurrencyLevel (16) and purge interval (20 minutes).
-     * 
-     * @param mapDir the target directory to store persisted map files
-     * @param mapName the name of the map
-     * @throws IOException the exception throws if failed to operate on memory mapped files
-     */
-    public BigConcurrentHashMapImpl(String mapDir, String mapName) throws IOException {
-        this(mapDir, mapName, DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, DEFAULT_PURGE_INTERVAL);
-    }
-    
-    /**
-     * Creates a new, empty map with the specified initial capacity,
-     * and with default initial capacity (16), load factor (0.75) and concurrencyLevel (16).
-     *
-     * @param mapDir the target directory to store persisted map files
-     * @param mapName the name of the map
-     * @param initialCapacity the initial capacity. The implementation
-     * performs internal sizing to accommodate this many elements.
-     * @param purgeIntervalInMs the map entry expiration purge interval in milliseconds
-     * @throws IOException the exception throws if failed to operate on memory mapped files
-     * @throws IllegalArgumentException if the initial capacity of
-     * elements is negative.
-     */
-    public BigConcurrentHashMapImpl(String mapDir, String mapName, long purgeIntervalInMs) throws IOException {
-        this(mapDir, mapName, DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, purgeIntervalInMs);
-    }
-	
-    /**
-     * Creates a new, empty map with the specified initial capacity,
-     * and with default load factor (0.75), concurrencyLevel (16) and purge interval (20 minutes).
-     *
-     * @param mapDir the target directory to store persisted map files
-     * @param mapName the name of the map
-     * @param initialCapacity the initial capacity. The implementation
-     * performs internal sizing to accommodate this many elements.
-     * @throws IOException the exception throws if failed to operate on memory mapped files
-     * @throws IllegalArgumentException if the initial capacity of
-     * elements is negative.
-     */
-	public BigConcurrentHashMapImpl(String mapDir, String mapName, int initialCapacity) throws IOException {
-        this(mapDir, mapName, initialCapacity, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, DEFAULT_PURGE_INTERVAL);
 	}
 	
 	void purge() throws IOException {
