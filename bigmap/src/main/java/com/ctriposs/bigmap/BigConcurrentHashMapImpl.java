@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
@@ -85,6 +86,8 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	 * Expiration purge timer
 	 */
 	final Timer purgeTimer;
+	
+	final AtomicLong purgeCount = new AtomicLong(0);
 	
     /* ---------------- Small Utilities -------------- */
 	
@@ -448,31 +451,33 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
         
         // Purge expired entries
         void purge() throws IOException {
-        	lock();
-        	try {
-	        	for(int index = 0; index < table.length; index++) {
-	        		HashEntry e = table[index];
-	        		while(e != null) {
-	        			MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
-	        			
-	                	// has the entry expired?
-	                	long ttlInMs = me.getTimeToLive();
-	                	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
-	                	
-	                	HashEntry next = e.next;
-	                	if (expired) {
-	                		this.mapEntryFactory.release(me);
-	                		
-	                		this.removeEntry(table, index, e);
-	                		
-	                		count--;
-	                	}
-	        			
-	        			e = next;
-	        		}
+        	if (count != 0) {
+	        	lock();
+	        	try {
+		        	for(int index = 0; index < table.length; index++) {
+		        		HashEntry e = table[index];
+		        		while(e != null) {
+		        			MapEntry me = this.mapEntryFactory.findMapEntryByIndex(e.index);
+		        			
+		                	// has the entry expired?
+		                	long ttlInMs = me.getTimeToLive();
+		                	boolean expired = ttlInMs > 0 && (System.currentTimeMillis() - me.getLastAccessedTime() > ttlInMs);
+		                	
+		                	HashEntry next = e.next;
+		                	if (expired) {
+		                		this.mapEntryFactory.release(me);
+		                		
+		                		this.removeEntry(table, index, e);
+		                		
+		                		count--;
+		                	}
+		        			
+		        			e = next;
+		        		}
+		        	}
+	        	} finally {
+	        		unlock();
 	        	}
-        	} finally {
-        		unlock();
         	}
         }
         
@@ -602,6 +607,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 				if (running.compareAndSet(false, true)) {
 					try {
 						purge();
+						purgeCount.incrementAndGet();
 					} finally {
 						running.set(false);
 					}
@@ -624,6 +630,23 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      */
     public BigConcurrentHashMapImpl(String mapDir, String mapName) throws IOException {
         this(mapDir, mapName, DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, DEFAULT_PURGE_INTERVAL);
+    }
+    
+    /**
+     * Creates a new, empty map with the specified initial capacity,
+     * and with default initial capacity (16), load factor (0.75) and concurrencyLevel (16).
+     *
+     * @param mapDir the target directory to store persisted map files
+     * @param mapName the name of the map
+     * @param initialCapacity the initial capacity. The implementation
+     * performs internal sizing to accommodate this many elements.
+     * @param purgeIntervalInMs the map entry expiration purge interval in milliseconds
+     * @throws IOException the exception throws if failed to operate on memory mapped files
+     * @throws IllegalArgumentException if the initial capacity of
+     * elements is negative.
+     */
+    public BigConcurrentHashMapImpl(String mapDir, String mapName, long purgeIntervalInMs) throws IOException {
+        this(mapDir, mapName, DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_CONCURRENCY_LEVEL, purgeIntervalInMs);
     }
 	
     /**
@@ -928,11 +951,14 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 
 	@Override
 	public void close() throws IOException {
+		this.clear();
+		this.purgeTimer.cancel();
 		this.mapEntryFactory.close();
 	}
 
 	@Override
 	public void removeAll() throws IOException {
+		this.clear();
 		this.mapEntryFactory.removeAll();
 	}
 }
