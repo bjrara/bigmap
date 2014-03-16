@@ -12,6 +12,16 @@ public class BigConfig {
 	private int concurrencyLevel = BigConcurrentHashMapImpl.DEFAULT_CONCURRENCY_LEVEL;
 	private float loadFactor = BigConcurrentHashMapImpl.DEFAULT_LOAD_FACTOR;
 	private long purgeIntervalInMs = BigConcurrentHashMapImpl.DEFAULT_PURGE_INTERVAL;
+	private boolean reloadOnStartup = BigConcurrentHashMapImpl.DEFAULT_RELOAD_ON_STARTUP;
+	
+	public boolean isReloadOnStartup() {
+		return reloadOnStartup;
+	}
+
+	public BigConfig setReloadOnStartup(boolean reloadOnStartup) {
+		this.reloadOnStartup = reloadOnStartup;
+		return this;
+	}
 	
 	public int getInitialCapacity() {
 		return initialCapacity;

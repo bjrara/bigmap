@@ -43,6 +43,11 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * The default map entry expiration purge interval
      */
     static final int DEFAULT_PURGE_INTERVAL = 1000 * 60 * 20;
+    
+    /**
+     * Should the on disk map be reloaded into memory on map initialization
+     */
+    static final boolean DEFAULT_RELOAD_ON_STARTUP = false;
 
     /**
      * The maximum capacity, used if a higher value is implicitly
@@ -81,6 +86,15 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	 * Factory managing the creation, recycle/reuse of map entries.
 	 */
 	final IMapEntryFactory mapEntryFactory;
+	
+	/**
+	 * map file directory
+	 */
+	final String mapDir;
+	/**
+	 * map name
+	 */
+	final String mapName;
 
 	/**
 	 * Expiration purge timer
@@ -557,8 +571,14 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
         		config.getConcurrencyLevel() <= 0 || config.getPurgeIntervalInMs() <= 10)
             throw new IllegalArgumentException();
 
-        
+        this.mapDir = mapDir;
+        this.mapName = mapName;
         this.mapEntryFactory = new MapEntryFactoryImpl(mapDir, mapName);
+        
+        // reload on disk map entries into memory
+        if (!((MapEntryFactoryImpl)this.mapEntryFactory).isEmpty() && config.isReloadOnStartup()) {
+        	this.reload();
+        }
 
         // Find power-of-two sizes best matching arguments
         int sshift = 0;
@@ -583,6 +603,43 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             
         purgeTimer = new Timer(mapName + "_purgeTimer");
         purgeTimer.schedule(new PurgeTimerTask(), config.getPurgeIntervalInMs(), config.getPurgeIntervalInMs());
+	}
+	
+	/**
+	 * Compact the on-disk map files to remove fragments(free entry spaces left by previously released map entries),
+	 * 
+	 * Important: this method must be synchronized by caller, when one thread is compacting the map, no other thread can do anything(get, put, etc) on the map
+	 * 
+	 * @throws IOException
+	 */
+	public void compact() throws IOException {
+		this.reload();
+	}
+	
+	void reload() throws IOException {
+		// copy to a temp map
+		MapEntryFactoryImpl copy = ((MapEntryFactoryImpl)mapEntryFactory).copyTo(this.mapName + "-copy");
+		
+		// clear map
+		this.clear();
+		mapEntryFactory.removeAll();
+		
+		// reload the map
+		long index = 0;
+		while(index >= 0) {
+			MapEntry mapEntry = copy.findMapEntryByIndex(index);
+			if (mapEntry.isAllocated()) {
+				if (mapEntry.isInUse()) {
+					this.put(mapEntry.getEntryKey(), mapEntry.getEntryValue(), mapEntry.getTimeToLive());
+				}
+			} else {
+				break;
+			}
+			index++;
+		}
+		
+		// delete temp map
+		copy.deleteMapFile();
 	}
 	
     /**

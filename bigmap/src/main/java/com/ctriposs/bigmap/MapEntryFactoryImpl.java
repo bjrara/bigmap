@@ -67,7 +67,10 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	final static int META_DATA_PAGE_SIZE = 1 << META_DATA_ITEM_LENGTH_BITS;
 	
 	// directory to persist map data
-	String mapFileDirectory;
+	String mapFileDirectory; // equals mapDir + mapName
+	
+	String mapDir;
+	String mapName;
 	
 	// factory for index page
 	IMappedPageFactory indexPageFactory; 
@@ -178,16 +181,18 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	
 	public MapEntryFactoryImpl(String mapDir, String mapName) throws IOException {
 		
-		mapFileDirectory = mapDir;
-		if (!mapFileDirectory.endsWith(File.separator)) {
-			mapFileDirectory += File.separator;
+		this.mapDir = mapDir;
+		this.mapName = mapName;
+		this.mapFileDirectory = mapDir;
+		if (!this.mapFileDirectory.endsWith(File.separator)) {
+			this.mapFileDirectory += File.separator;
 		}
 		// append map name as part of the directory
-		mapFileDirectory = mapFileDirectory + mapName + File.separator;
+		this.mapFileDirectory = this.mapFileDirectory + mapName + File.separator;
 		
 		// validate directory
-		if (!FileUtil.isFilenameValid(mapFileDirectory)) {
-			throw new IllegalArgumentException("invalid map file directory : " + mapFileDirectory);
+		if (!FileUtil.isFilenameValid(this.mapFileDirectory)) {
+			throw new IllegalArgumentException("invalid map file directory : " + this.mapFileDirectory);
 		}
 		
 		freeEntryIndexSet = new ConcurrentSkipListSet<Integer>(); // size sorted free list
@@ -197,6 +202,28 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		}
 		
 		this.commonInit();
+	}
+	
+	/**
+	 * Copy map files to another folder in the same map directory
+	 * 
+	 * @param mapName
+	 * @return a MapEntryFactoryImpl with same file content as the original MapEntryFactoryImpl
+	 * @throws IOException
+	 */
+	MapEntryFactoryImpl copyTo(String mapName) throws IOException {
+		String copyToDir = this.mapDir;
+		if (!copyToDir.endsWith(File.separator)) {
+			copyToDir += File.separator;
+		}
+		// append map name as part of the directory
+		copyToDir = copyToDir + mapName;
+		
+		if (!FileUtil.copyDirectory(this.mapFileDirectory, copyToDir)) {
+			throw new IOException("Fail to copy from " + this.mapFileDirectory + " to " + copyToDir);
+		}
+		
+		return new MapEntryFactoryImpl(this.mapDir, mapName);
 	}
 	
 	void commonInit() throws IOException {
@@ -469,7 +496,7 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 				IMappedPage metaDataPage = this.metaPageFactory.acquirePage(META_DATA_PAGE_INDEX);
 				ByteBuffer metaDataBuf = metaDataPage.getLocal(0);
 				metaDataBuf.putLong(this.arrayHeadIndex.get());
-				metaDataBuf.putLong(this.arrayTailIndex.get());
+				//metaDataBuf.putLong(this.arrayTailIndex.get());
 				metaDataPage.setDirty(true);
 			} finally {
 				appendLock.unlock();
@@ -520,6 +547,12 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	    } finally {
 	        arrayReadLock.unlock();
 	    }
+	}
+	
+	//Delete the whole map and files
+	void deleteMapFile() throws IOException {
+		this.close();
+		FileUtil.deleteDirectory(new File(this.mapFileDirectory));
 	}
 
 	@Override
