@@ -99,7 +99,9 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	/**
 	 * Expiration purge timer
 	 */
-	final Timer purgeTimer;
+	Timer purgeTimer;
+	
+	final BigConfig config;
 	
 	final AtomicLong purgeCount = new AtomicLong(0);
 	
@@ -573,12 +575,8 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 
         this.mapDir = mapDir;
         this.mapName = mapName;
+        this.config = config;
         this.mapEntryFactory = new MapEntryFactoryImpl(mapDir, mapName);
-        
-        // reload on disk map entries into memory
-        if (!((MapEntryFactoryImpl)this.mapEntryFactory).isEmpty() && config.isReloadOnStartup()) {
-        	this.reload();
-        }
 
         // Find power-of-two sizes best matching arguments
         int sshift = 0;
@@ -600,7 +598,27 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 
         for (int i = 0; i < this.segments.length; ++i)
             this.segments[i] = new Segment<byte[]>(cap, config.getLoadFactor(), this.mapEntryFactory);
-            
+        
+        // reload on disk map entries into memory
+        if (!((MapEntryFactoryImpl)this.mapEntryFactory).isEmpty()) {
+        	if (config.isReloadOnStartup()) {
+        	    this.reload();
+        	} else {
+            	this.mapEntryFactory.removeAll();
+        	}
+        }
+        
+        this.startPurgeTimer();
+	}
+	
+	private void stopPurgeTimer() {
+		if (this.purgeTimer != null) {
+			this.purgeTimer.cancel();
+			this.purgeTimer = null;
+		}
+	}
+	
+	private void startPurgeTimer() {
         purgeTimer = new Timer(mapName + "_purgeTimer");
         purgeTimer.schedule(new PurgeTimerTask(), config.getPurgeIntervalInMs(), config.getPurgeIntervalInMs());
 	}
@@ -613,7 +631,11 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	 * @throws IOException
 	 */
 	public void compact() throws IOException {
+		this.stopPurgeTimer();
+		
 		this.reload();
+		
+		this.startPurgeTimer();
 	}
 	
 	void reload() throws IOException {
@@ -621,8 +643,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 		MapEntryFactoryImpl copy = ((MapEntryFactoryImpl)mapEntryFactory).copyTo(this.mapName + "-copy");
 		
 		// clear map
-		this.clear();
-		mapEntryFactory.removeAll();
+		this.removeAll();
 		
 		// reload the map
 		long index = 0;
@@ -962,7 +983,7 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	@Override
 	public void close() throws IOException {
 		this.clear();
-		this.purgeTimer.cancel();
+		this.stopPurgeTimer();
 		this.mapEntryFactory.close();
 	}
 

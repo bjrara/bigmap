@@ -158,4 +158,9 @@ public interface IMapEntryFactory extends Closeable {
      * @return counter
      */
     long getTotalAcquireNewCounter();
+    
+    /**
+     * Persistent in memory cache
+     */
+    void flush();
 }

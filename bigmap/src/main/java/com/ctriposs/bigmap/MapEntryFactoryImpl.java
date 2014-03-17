@@ -97,27 +97,27 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	
 	// head index of the big array, this is the read write barrier.
 	// readers can only read items before this index, and writes can write this index or after
-	final AtomicLong arrayHeadIndex = new AtomicLong();
+	AtomicLong arrayHeadIndex = new AtomicLong();
 	// tail index of the big array,
 	// readers can't read items before this tail
-	final AtomicLong arrayTailIndex = new AtomicLong();
+	AtomicLong arrayTailIndex = new AtomicLong();
 	
 	// total number of free entries
-	final AtomicLong freeEntryCount = new AtomicLong();
+	AtomicLong freeEntryCount = new AtomicLong();
 	// total number of entries allocated(free + used)
-	final AtomicLong totalEntryCount = new AtomicLong();
+	AtomicLong totalEntryCount = new AtomicLong();
 	// total free slot size
-	final AtomicLong totalFreeSlotSize = new AtomicLong();
+	AtomicLong totalFreeSlotSize = new AtomicLong();
 	// total number of slot size allocated(free + used)
-	final AtomicLong totalSlotSize = new AtomicLong();
+	AtomicLong totalSlotSize = new AtomicLong();
 	// total number of slot size really used
-	final AtomicLong totalRealUsedSlotSize = new AtomicLong();
+	AtomicLong totalRealUsedSlotSize = new AtomicLong();
 	
 	// counters
-	final AtomicLong totalAcquireCounter = new AtomicLong();
-	final AtomicLong totalReleaseCounter = new AtomicLong();
-	final AtomicLong totalExactMatchReuseCounter = new AtomicLong();
-	final AtomicLong totalApproximateMatchReuseCounter = new AtomicLong();
+	AtomicLong totalAcquireCounter = new AtomicLong();
+	AtomicLong totalReleaseCounter = new AtomicLong();
+	AtomicLong totalExactMatchReuseCounter = new AtomicLong();
+	AtomicLong totalApproximateMatchReuseCounter = new AtomicLong();
 	
 	NavigableSet<Integer> freeEntryIndexSet;
 	FreeEntry[] freeEntries;
@@ -195,12 +195,6 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 			throw new IllegalArgumentException("invalid map file directory : " + this.mapFileDirectory);
 		}
 		
-		freeEntryIndexSet = new ConcurrentSkipListSet<Integer>(); // size sorted free list
-		freeEntries = new FreeEntry[FREE_ENTRY_ARRAY_SIZE];
-		for(int i = 0; i < FREE_ENTRY_ARRAY_SIZE; i++) {
-			freeEntries[i] = new FreeEntry();
-		}
-		
 		this.commonInit();
 	}
 	
@@ -218,6 +212,9 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		}
 		// append map name as part of the directory
 		copyToDir = copyToDir + mapName;
+		
+		// persistent current map
+		this.flush();
 		
 		if (!FileUtil.copyDirectory(this.mapFileDirectory, copyToDir)) {
 			throw new IOException("Fail to copy from " + this.mapFileDirectory + " to " + copyToDir);
@@ -237,6 +234,37 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		
 		// initialize data page indexes
 		initDataPageIndex();
+		
+		initFreeEntry();
+		
+		initCounters();
+	}
+	
+	void initFreeEntry() {
+		freeEntryIndexSet = new ConcurrentSkipListSet<Integer>(); // size sorted free list
+		freeEntries = new FreeEntry[FREE_ENTRY_ARRAY_SIZE];
+		for(int i = 0; i < FREE_ENTRY_ARRAY_SIZE; i++) {
+			freeEntries[i] = new FreeEntry();
+		}
+	}
+	
+	void initCounters() {
+		// total number of free entries
+		freeEntryCount = new AtomicLong();
+		// total number of entries allocated(free + used)
+		totalEntryCount = new AtomicLong();
+		// total free slot size
+		totalFreeSlotSize = new AtomicLong();
+		// total number of slot size allocated(free + used)
+		totalSlotSize = new AtomicLong();
+		// total number of slot size really used
+		totalRealUsedSlotSize = new AtomicLong();
+		
+		// counters
+		totalAcquireCounter = new AtomicLong();
+		totalReleaseCounter = new AtomicLong();
+		totalExactMatchReuseCounter = new AtomicLong();
+		totalApproximateMatchReuseCounter = new AtomicLong();
 	}
 	
 	// find out array head/tail from the meta data
@@ -599,6 +627,26 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		return this.totalAcquireCounter.get() - 
 			   this.totalExactMatchReuseCounter.get() - 
 			   this.totalApproximateMatchReuseCounter.get();
+	}
+
+	@Override
+	public void flush() {
+        try {
+            arrayWriteLock.lock();
+            if (this.metaPageFactory != null) {
+                    this.metaPageFactory.flush();
+            }
+            if (this.indexPageFactory != null) {
+                    this.indexPageFactory.flush();
+            }
+            if (this.dataPageFactory != null) {
+                    this.dataPageFactory.flush();
+            }
+	    } finally {
+	            arrayWriteLock.unlock();
+	    }
+		
+		
 	}
 
 }
