@@ -366,6 +366,23 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
             }
         }
         
+        
+        void restoreInUseMapEntry(MapEntry me, int hash) throws IOException {
+        	lock();
+        	try {
+        		int c = count;
+        		if (c++ > threshold) // ensure capacity
+        			rehash();
+                HashEntry[] tab = table;
+                int index = hash & (tab.length - 1);
+                HashEntry first = tab[index];
+                
+                tab[index] = new HashEntry(me.getIndex(), hash, first);
+                count = c; // write-volatile
+        	} finally {
+        		unlock();
+        	}
+        }
 
         byte[] put(byte[] key, int hash, byte[] value, boolean onlyIfAbsent, long ttlInMs) throws IOException {
             lock();
@@ -624,43 +641,27 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	}
 	
 	/**
-	 * Compact the on-disk map files to remove fragments(free entry spaces left by previously released map entries),
-	 * 
-	 * Important: this method must be synchronized by caller, when one thread is compacting the map, no other thread can do anything(get, put, etc) on the map
+	 * Load the on-disk map entries and rebuild the in-memory index
 	 * 
 	 * @throws IOException
 	 */
-	public void compact() throws IOException {
-		this.stopPurgeTimer();
-		
-		this.reload();
-		
-		this.startPurgeTimer();
-	}
-	
 	void reload() throws IOException {
-		// copy to a temp map
-		MapEntryFactoryImpl copy = ((MapEntryFactoryImpl)mapEntryFactory).copyTo(this.mapName + "-copy");
+		MapEntryFactoryImpl factory = (MapEntryFactoryImpl)this.mapEntryFactory;
 		
-		// clear map
-		this.removeAll();
-		
-		// reload the map
 		long index = 0;
 		while(index >= 0) {
-			MapEntry mapEntry = copy.findMapEntryByIndex(index);
-			if (mapEntry.isAllocated()) {
-				if (mapEntry.isInUse()) {
-					this.put(mapEntry.getEntryKey(), mapEntry.getEntryValue(), mapEntry.getTimeToLive());
+			MapEntry me = factory.findMapEntryByIndex(index);
+			if (me.isAllocated()) {
+				factory.restore(me);
+				if (me.isInUse()) {
+					this.restoreInUseMapEntry(me);
 				}
+				
 			} else {
 				break;
 			}
 			index++;
 		}
-		
-		// delete temp map
-		copy.deleteMapFile();
 	}
 	
     /**
@@ -805,6 +806,22 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 			return segmentFor(hash).put(key, hash, value, false, ttlInMs);
 		} catch (IOException e) {
 			throw new RuntimeException("Fail to put key/value in the map", e);
+		}
+	}
+	
+	void restoreInUseMapEntry(MapEntry me) {
+		try {
+			byte[] key = me.getEntryKey();
+			if (key == null || key.length == 0) throw new NullPointerException("key is null or empty");
+			if (me.getEntryValue() == null || me.getEntryValue().length == 0) throw new NullPointerException("value is null or empty");
+			if (me.getTimeToLive() < 0) throw new IllegalArgumentException("Invalid time to live value " + me.getTimeToLive() + ", it must be >= 0.");
+		
+			final int hash = Arrays.hashCode(key);
+			
+			segmentFor(hash).restoreInUseMapEntry(me, hash);
+			
+		} catch (IOException e) {
+			throw new RuntimeException("Fail to restore/put key/value in the map", e);
 		}
 	}
 	

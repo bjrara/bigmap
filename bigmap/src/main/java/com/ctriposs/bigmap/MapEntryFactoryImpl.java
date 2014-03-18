@@ -198,31 +198,6 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		this.commonInit();
 	}
 	
-	/**
-	 * Copy map files to another folder in the same map directory
-	 * 
-	 * @param mapName
-	 * @return a MapEntryFactoryImpl with same file content as the original MapEntryFactoryImpl
-	 * @throws IOException
-	 */
-	MapEntryFactoryImpl copyTo(String mapName) throws IOException {
-		String copyToDir = this.mapDir;
-		if (!copyToDir.endsWith(File.separator)) {
-			copyToDir += File.separator;
-		}
-		// append map name as part of the directory
-		copyToDir = copyToDir + mapName;
-		
-		// persistent current map
-		this.flush();
-		
-		if (!FileUtil.copyDirectory(this.mapFileDirectory, copyToDir)) {
-			throw new IOException("Fail to copy from " + this.mapFileDirectory + " to " + copyToDir);
-		}
-		
-		return new MapEntryFactoryImpl(this.mapDir, mapName);
-	}
-	
 	void commonInit() throws IOException {
 		// initialize page factories
 		indexPageFactory = new MappedPageFactoryImpl(INDEX_PAGE_SIZE, this.mapFileDirectory + INDEX_PAGE_FOLDER);
@@ -428,6 +403,16 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 			}
 		}
 		return null; // no luck
+	}
+	
+	void restore(MapEntry me) throws IOException {
+		this.totalEntryCount.incrementAndGet();
+		this.totalAcquireCounter.incrementAndGet();
+		this.totalRealUsedSlotSize.addAndGet(me.getRealEntryLength());
+		this.totalSlotSize.addAndGet(me.getSlotSize());
+		if (me.isReleased()) {
+			this.release(me);
+		}
 	}
 	
 	// release a slot to the free list for reuse later

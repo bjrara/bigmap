@@ -50,7 +50,8 @@ public class ReloadTest {
 		map = new BigConcurrentHashMapImpl(testDir, "TestReload", new BigConfig().setReloadOnStartup(true));
 		
 		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed > map.BackFileUsed()); // verify compacted
+		assertTrue(fileUsed <= map.BackFileUsed()); // size may grow because of allocation check
+		fileUsed = map.BackFileUsed();
 		
 		for(int i = 0; i < loop; i++) {
 			if (i % 2 == 0) {
@@ -83,49 +84,7 @@ public class ReloadTest {
 			}
 		}
 		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed == map.BackFileUsed());
-	}
-	
-	@Test
-	public void TestCompact() throws IOException {
-		map = new BigConcurrentHashMapImpl(testDir, "compactTest");
-		
-		String randomString = TestUtil.randomString(1024);
-		
-		int loop = 1024 * 1024;
-		
-		for(int i = 0; i < loop; i ++) {
-			map.put(String.valueOf(i).getBytes(),(i + randomString).getBytes());
-		}
-		assertTrue(map.size() == loop);
-		
-		long fileUsed = map.BackFileUsed();
-		
-		for(int i = 0; i < loop; i += 2 ) {
-			map.remove(String.valueOf(i).getBytes());
-		}
-		for(int i = 0; i < loop; i++) {
-			if (i % 2 == 0) {
-				assertFalse(map.containsKey(String.valueOf(i).getBytes()));
-			} else {
-				assertTrue(map.containsKey(String.valueOf(i).getBytes()));
-			}
-		}
-		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed == map.BackFileUsed());
-		
-		map.compact();
-		
-		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed > map.BackFileUsed()); // verify compacted
-		
-		for(int i = 0; i < loop; i++) {
-			if (i % 2 == 0) {
-				assertFalse(map.containsKey(String.valueOf(i).getBytes()));
-			} else {
-				assertTrue(map.containsKey(String.valueOf(i).getBytes()));
-			}
-		}
+		assertTrue(fileUsed >= map.BackFileUsed());
 	}
 	
 	@After
