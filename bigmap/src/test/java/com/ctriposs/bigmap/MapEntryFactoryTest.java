@@ -62,8 +62,8 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 1024);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 4096);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 1);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(255)); //(length - 1) / 16
 		
@@ -81,8 +81,8 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 5124);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 4096);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
 		
 		mapEntryPool.release(me3);
 		assertTrue(me3.isReleased() == true);
@@ -94,10 +94,10 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 1024);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 8196);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4100) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4100) == 4100);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4100 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4100 - 1) / 16) == 4100);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 2);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(255));
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(256));
@@ -119,12 +119,12 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 9220);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4100) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4100) == 4100);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 1024);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4100 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4100 - 1) / 16) == 4100);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 1024);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 3);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(255)); // (4096 - 1) / 16
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(256));
@@ -144,12 +144,12 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 8192);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 9220);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4100) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4100) == 4100);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 1024);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4100 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4100 - 1) / 16) == 4100);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 1024);
 		
 		mapEntryPool.release(me);
 		assertTrue(me.isReleased() == true);
@@ -169,14 +169,14 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 1024);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 16388);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4100) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 0);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(8192) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4100) == 4100);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 0);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(8192) == 8192);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4100 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 0);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((8192 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4100 - 1) / 16) == 4100);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 0);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((8192 - 1) / 16) == 8192);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 3);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(255));
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(256));
@@ -195,14 +195,14 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 2049);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 16388);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4100) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 0);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(8192) == 1);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4100) == 4100);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 0);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(8192) == 8192);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4100 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 0);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((8192 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4100 - 1) / 16) == 4100);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 0);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((8192 - 1) / 16) == 8192);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 3);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(255));
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(256));
@@ -227,16 +227,16 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 1);
 		
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 16388);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4096) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(4100) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 0);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(8192) == 1);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1025) == 0);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4096) == 4096);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(4100) == 4100);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 0);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(8192) == 8192);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1025) == 0);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4096 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((4100 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 0);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((8192 - 1) / 16) == 1);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex(1025) == 0);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4096 - 1) / 16) == 4096);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((4100 - 1) / 16) == 4100);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 0);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((8192 - 1) / 16) == 8192);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1025 - 1) / 16) == 0);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 3);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(255));
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().contains(256));
@@ -401,8 +401,8 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 1024 * 5);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 1024 * 5);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 5);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 1024 * 5);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 5);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 1024 * 5);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 1);
 		
 		for(int i = 5; i < 10; i++) {
@@ -415,8 +415,8 @@ public class MapEntryFactoryTest {
 		assertTrue(mapEntryPool.getTotalRealUsedSlotSize() == 0);
 		assertTrue(mapEntryPool.getTotalFreeSlotSize() == 1024 * 10);
 		assertTrue(mapEntryPool.getTotalWastedSlotSize() == 0);
-		assertTrue(mapEntryPool.getFreeEntryCountByLength(1024) == 10);
-		assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength(1024) == 1024 * 10);
+		assertTrue(mapEntryPool.getFreeEntryCountByIndex((1024 - 1) / 16) == 10);
+		assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex((1024 - 1) / 16) == 1024 * 10);
 		assertTrue(mapEntryPool.getFreeEntryIndexSet().size() == 1);
 		
 		entries = new MapEntry[10];
@@ -513,8 +513,8 @@ public class MapEntryFactoryTest {
 		System.out.println("mapEntryPool.getTotalApproximateMatchReuseCounter() = " + mapEntryPool.getTotalApproximateMatchReuseCounter());
 		System.out.println("mapEntryPool.getTotalAcquireNewCounter() = " + mapEntryPool.getTotalAcquireNewCounter());
 		for(int i : mapEntryPool.getFreeEntryIndexSet()) {
-			assertTrue(mapEntryPool.getFreeEntryCountByLength((i * 16) + 1) > 0);
-			assertTrue(mapEntryPool.getTotalFreeSlotSizeByLength((i * 16) + 1) > 0);
+			assertTrue(mapEntryPool.getFreeEntryCountByIndex(i) > 0);
+			assertTrue(mapEntryPool.getTotalFreeSlotSizeByIndex(i) > 0);
 		}
 	}
 	

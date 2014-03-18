@@ -4,12 +4,6 @@ import java.io.Closeable;
 import java.io.IOException;
 
 public interface IBigConcurrentHashMap extends Closeable {
-	/**
-	 * The size of back file used
-     * @throws IOException exception throws during file IO operation 
-	 * @return used back file size
-	 */
-	long BackFileUsed() throws IOException;
 	
     /**
      * Removes all mappings from this hash map, leaving it empty.
@@ -109,4 +103,11 @@ public interface IBigConcurrentHashMap extends Closeable {
 	 * @throws IOException exception throws during file IO operation.
 	 */
 	public void removeAll() throws IOException;
+	
+	/**
+	 * Stats for memory mapped file
+	 * 
+	 * @return file stats
+	 */
+	public IMMFStats getMemoryMappedFileStats();
 }

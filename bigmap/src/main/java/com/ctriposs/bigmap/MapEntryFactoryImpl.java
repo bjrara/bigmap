@@ -156,12 +156,6 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		return (int)Calculator.div(length - 1, FREE_ENTRY_ARRAY_ITEM_BITS);
 	}
 	
-	public long getTotalFreeSlotSizeByLength(int length) {
-		int index = mapLengthToFreeEntryArrayIndex(length);
-		if (index < 0 || index >= FREE_ENTRY_ARRAY_SIZE) return -1;
-		return this.freeEntries[index].totalSlotSize;
-	}
-	
 	// Get total number of free entries
 	public long getFreeEntryCount() {
 		return this.freeEntryCount.get();
@@ -172,12 +166,37 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		return this.totalEntryCount.get();
 	}
 	
-	// Get total number of free entries with specific length
-	public long getFreeEntryCountByLength(int length) {
-		int index = mapLengthToFreeEntryArrayIndex(length);
+	@Override
+	public long getFreeEntryCountByIndex(int index) {
 		if (index < 0 || index >= FREE_ENTRY_ARRAY_SIZE) return -1;
 		return this.freeEntries[index].count;
 	}
+
+	@Override
+	public long getTotalFreeSlotSizeByIndex(int index) {
+		if (index < 0 || index >= FREE_ENTRY_ARRAY_SIZE) return -1;
+		return this.freeEntries[index].totalSlotSize;
+	}
+	
+
+	@Override
+	public long[] getFreeEntryCountArray() {
+		long[] array = new long[FREE_ENTRY_ARRAY_SIZE];
+		for(int i = 0; i < FREE_ENTRY_ARRAY_SIZE; i++) {
+			array[i] = this.freeEntries[i].count;
+		}
+		return array;
+	}
+
+	@Override
+	public long[] getTotalFreeSlotSizeArray() {
+		long[] array = new long[FREE_ENTRY_ARRAY_SIZE];
+		for(int i = 0; i < FREE_ENTRY_ARRAY_SIZE; i++) {
+			array[i] = this.freeEntries[i].totalSlotSize;
+		}
+		return array;
+	}
+
 	
 	public MapEntryFactoryImpl(String mapDir, String mapName) throws IOException {
 		
@@ -551,7 +570,7 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	}
 
 	@Override
-	public long getBackFileSize() throws IOException {
+	public long getBackFileUsed() throws IOException {
         try {
             arrayReadLock.lock();
             
@@ -560,12 +579,6 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	    } finally {
 	        arrayReadLock.unlock();
 	    }
-	}
-	
-	//Delete the whole map and files
-	void deleteMapFile() throws IOException {
-		this.close();
-		FileUtil.deleteDirectory(new File(this.mapFileDirectory));
 	}
 
 	@Override
@@ -633,5 +646,6 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 		
 		
 	}
+
 
 }

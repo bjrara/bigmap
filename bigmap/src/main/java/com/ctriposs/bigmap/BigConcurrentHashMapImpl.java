@@ -993,11 +993,6 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
     }
 
 	@Override
-	public long BackFileUsed() throws IOException {
-		return this.mapEntryFactory.getBackFileSize();
-	}
-
-	@Override
 	public void close() throws IOException {
 		this.clear();
 		this.stopPurgeTimer();
@@ -1008,5 +1003,10 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
 	public void removeAll() throws IOException {
 		this.clear();
 		this.mapEntryFactory.removeAll();
+	}
+
+	@Override
+	public IMMFStats getMemoryMappedFileStats() {
+		return this.mapEntryFactory;
 	}
 }

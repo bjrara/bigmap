@@ -29,7 +29,7 @@ public class ReloadTest {
 		}
 		assertTrue(map.size() == loop);
 		
-		long fileUsed = map.BackFileUsed();
+		long fileUsed = map.getMemoryMappedFileStats().getBackFileUsed();
 		
 		for(int i = 0; i < loop; i += 2 ) {
 			map.remove(String.valueOf(i).getBytes());
@@ -42,7 +42,7 @@ public class ReloadTest {
 			}
 		}
 		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed == map.BackFileUsed());
+		assertTrue(fileUsed == map.getMemoryMappedFileStats().getBackFileUsed());
 		
 		map.close();
 		
@@ -50,8 +50,8 @@ public class ReloadTest {
 		map = new BigConcurrentHashMapImpl(testDir, "TestReload", new BigConfig().setReloadOnStartup(true));
 		
 		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed <= map.BackFileUsed()); // size may grow because of allocation check
-		fileUsed = map.BackFileUsed();
+		assertTrue(fileUsed <= map.getMemoryMappedFileStats().getBackFileUsed()); // size may grow because of allocation check
+		fileUsed = map.getMemoryMappedFileStats().getBackFileUsed();
 		
 		for(int i = 0; i < loop; i++) {
 			if (i % 2 == 0) {
@@ -84,7 +84,7 @@ public class ReloadTest {
 			}
 		}
 		assertTrue(map.size() == (loop / 2));
-		assertTrue(fileUsed >= map.BackFileUsed());
+		assertTrue(fileUsed >= map.getMemoryMappedFileStats().getBackFileUsed());
 	}
 	
 	@After

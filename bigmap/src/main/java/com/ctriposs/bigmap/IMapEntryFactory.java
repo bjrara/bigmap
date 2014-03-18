@@ -10,7 +10,7 @@ import java.util.NavigableSet;
  * @author bulldog
  *
  */
-public interface IMapEntryFactory extends Closeable {
+public interface IMapEntryFactory extends Closeable, IMMFStats {
 	
 	/**
 	 * Acquire a new map entry, either new or reused
@@ -44,78 +44,23 @@ public interface IMapEntryFactory extends Closeable {
      */
 	public void removeAll() throws IOException;
 	
-	/**
-     * Get total size of back files(index and data files) of the big map
-     *
-     * @return total size of back files
-     * @throws IOException exception thrown if there was any IO error during the getBackFileSize operation
-     */
-    long getBackFileSize() throws IOException;
     
     /**
-     * Get total number of free entries
+     * Get total number of free entries with specific index
      * 
+     * @param index free entry index
      * @return total number of free entries
      */
-    long getFreeEntryCount();
+    long getFreeEntryCountByIndex(int index);
     
     /**
-     * Get total number of free entries with specific length
+     * Get total size of free entries with specific index
      * 
-     * @param length target length
-     * @return total number of free entries
+     * @param index free entry index
+     * @return total size of free entries
      */
-    long getFreeEntryCountByLength(int length);
+    long getTotalFreeSlotSizeByIndex(int index);
     
-    /**
-     * Get total number of allocated(free + used) entries
-     * 
-     * @return total number of entries
-     */
-    long getTotalEntryCount();
-    
-    /**
-     * Get total free slot size with specific length
-     * 
-     * @param length target length
-     * @return total free slot size
-     */
-    long getTotalFreeSlotSizeByLength(int length);
-    
-    /**
-     * Get total free slot size
-     * 
-     * @return total free slot size
-     */
-    long getTotalFreeSlotSize();
-    
-    /**
-     * Get total slot size allocated(free + used)
-     * 
-     * @return total slot size
-     */
-    long getTotalSlotSize();
-    
-    /**
-     * Get currently used total slot size
-     * 
-     * @return total slot size
-     */
-    long getTotalUsedSlotSize();
-
-    /**
-     * Get total really used slot size
-     * 
-     * @return total slot size
-     */
-    long getTotalRealUsedSlotSize();
-    
-    /**
-     * Get currently wasted total slot size
-     * 
-     * @return total slot size
-     */
-    long getTotalWastedSlotSize();
     
     /**
      * For testing only
@@ -124,40 +69,6 @@ public interface IMapEntryFactory extends Closeable {
      */
     NavigableSet<Integer> getFreeEntryIndexSet();
     
-    /**
-     * Total number of acquire counter
-     * 
-     * @return counter
-     */
-    long getTotalAcquireCounter();
-    
-    /**
-     * Total number of release counter
-     * 
-     * @return counter
-     */
-    long getTotalReleaseCounter();
-    
-    /**
-     * Total number of exact match reuse counter
-     * 
-     * @return counter
-     */
-    long getTotalExatchMatchReuseCounter();
-    
-    /**
-     * Total number of approximate match reuse counter
-     * 
-     * @return counter
-     */
-    long getTotalApproximateMatchReuseCounter();
-    
-    /**
-     * Total number of acquire new counter
-     * 
-     * @return counter
-     */
-    long getTotalAcquireNewCounter();
     
     /**
      * Persistent in memory cache
