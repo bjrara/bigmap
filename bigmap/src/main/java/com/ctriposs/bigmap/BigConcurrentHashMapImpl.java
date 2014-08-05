@@ -586,14 +586,18 @@ public class BigConcurrentHashMapImpl implements IBigConcurrentHashMap {
      * nonpositive.
      */
 	public BigConcurrentHashMapImpl(String mapDir, String mapName, BigConfig config) throws IOException {
-        if (!(config.getLoadFactor() > 0) || config.getInitialCapacity() < 0 || 
+		this(mapDir, mapName, config, new MapEntryFactoryImpl(mapDir, mapName));
+	}
+	
+	public BigConcurrentHashMapImpl(String mapDir, String mapName, BigConfig config, IMapEntryFactory entryFactory) throws IOException {
+		if (!(config.getLoadFactor() > 0) || config.getInitialCapacity() < 0 || 
         		config.getConcurrencyLevel() <= 0 || config.getPurgeIntervalInMs() <= 10)
             throw new IllegalArgumentException();
 
         this.mapDir = mapDir;
         this.mapName = mapName;
         this.config = config;
-        this.mapEntryFactory = new MapEntryFactoryImpl(mapDir, mapName);
+        this.mapEntryFactory = entryFactory;
 
         // Find power-of-two sizes best matching arguments
         int sshift = 0;
