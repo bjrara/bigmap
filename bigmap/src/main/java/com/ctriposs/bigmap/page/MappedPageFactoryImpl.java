@@ -26,7 +26,7 @@ import static java.nio.channels.FileChannel.MapMode.READ_WRITE;
  * @author bulldog
  *
  */
-public class MappedPageFactoryImpl implements IMappedPageFactory {
+public class MappedPageFactoryImpl extends AbstractMappedPageFactory implements IMappedPageFactory {
 	
 	private final static Logger logger = LoggerFactory.getLogger(MappedPageFactoryImpl.class);
 	
@@ -35,25 +35,15 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 	private File pageDirFile;
 	private String pageFile;
 	
-	public static final String PAGE_FILE_NAME = "page";
-	public static final String PAGE_FILE_SUFFIX = ".dat";
-	
 	private Map<Long, MappedPageImpl> cache;
 	
 	public MappedPageFactoryImpl(int pageSize, String pageDir) {
-		this.pageSize = pageSize;
-		this.pageDir = pageDir;
-		this.pageDirFile = new File(this.pageDir);
-		if (!pageDirFile.exists()) {
-			pageDirFile.mkdirs();
-		}
-		if (!this.pageDir.endsWith(File.separator)) {
-			this.pageDir += File.separator;
-		}
-		this.pageFile = this.pageDir + PAGE_FILE_NAME + "-"; 
+		super(pageSize, pageDir);
+		
 		this.cache = new HashMap<Long, MappedPageImpl>();
 	}
 
+	@Override
 	public IMappedPage acquirePage(long index) throws IOException {
 		MappedPageImpl mpi = cache.get(index);
 		if (mpi == null) { // not in cache, need to create one
@@ -87,8 +77,9 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 		return mpi;
 	}
 	
-	private String getFileNameByIndex(long index) {
-		return this.pageFile + index + PAGE_FILE_SUFFIX;
+	@Override
+	protected String getFileNameByIndex(long index) {
+		return this.pageFile + index + PAGE_FILE_TYPE;
 	}
 
 
@@ -105,7 +96,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 	 */
 	@Override
 	public void releaseCachedPages() throws IOException {
-		this.removeAllCache();
+		this.clearCache();
 	}
 
 	/**
@@ -113,7 +104,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 	 */
 	@Override
 	public void deleteAllPages() throws IOException {
-		this.removeAllCache();
+		this.clearCache();
 		Set<Long> indexSet = getExistingBackFileIndexSet();
 		this.deletePages(indexSet);
 		if (logger.isDebugEnabled()) {
@@ -121,14 +112,17 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 		}
 	}
 	
-	private void removeCache(long index) throws IOException {
+	@Override
+	protected void cacheRemovePage(long index) throws IOException {
 		MappedPageImpl page = cache.remove(index);
 		if (page != null) {
 			page.close();
 		}
 	}
 	
-	private void removeAllCache() throws IOException {
+
+	@Override
+	protected void clearCache() throws IOException  {
 		for(MappedPageImpl page : cache.values()) {
 			page.close();
 		}
@@ -152,7 +146,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 	@Override
 	public void deletePage(long index) throws IOException {
 		// remove the page from cache first
-		this.removeCache(index);
+		this.cacheRemovePage(index);
 		String fileName = this.getFileNameByIndex(index);
 		int count = 0;
 		int maxRound = 10;
@@ -188,7 +182,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 			for(File pageFile : pageFiles) {
 				if (pageFile.lastModified() < timestamp) {
 					String fileName = pageFile.getName();
-					if (fileName.endsWith(PAGE_FILE_SUFFIX)) {
+					if (fileName.endsWith(PAGE_FILE_TYPE)) {
 						long index = this.getIndexByFileName(fileName);
 						beforeIndexSet.add(index);
 					}
@@ -198,10 +192,11 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 		return beforeIndexSet;
 	}
 	
-	private long getIndexByFileName(String fileName) {
+	@Override
+	protected long getIndexByFileName(String fileName) {
 		int beginIndex = fileName.lastIndexOf('-');
 		beginIndex += 1;
-		int endIndex = fileName.lastIndexOf(PAGE_FILE_SUFFIX);
+		int endIndex = fileName.lastIndexOf(PAGE_FILE_TYPE);
 		String sIndex = fileName.substring(beginIndex, endIndex);
 		long index = Long.parseLong(sIndex);
 		return index;
@@ -227,7 +222,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				String fileName = pageFile.getName();
-				if (fileName.endsWith(PAGE_FILE_SUFFIX)) {
+				if (fileName.endsWith(PAGE_FILE_TYPE)) {
 					long index = this.getIndexByFileName(fileName);
 					indexSet.add(index);
 				}
@@ -290,7 +285,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				String fileName = pageFile.getName();
-				if (fileName.endsWith(PAGE_FILE_SUFFIX)) {
+				if (fileName.endsWith(PAGE_FILE_TYPE)) {
 					fileSet.add(fileName);
 				}
 			}
@@ -305,7 +300,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				String fileName = pageFile.getName();
-				if (fileName.endsWith(PAGE_FILE_SUFFIX)) {
+				if (fileName.endsWith(PAGE_FILE_TYPE)) {
 					totalSize += pageFile.length();
 				}
 			}

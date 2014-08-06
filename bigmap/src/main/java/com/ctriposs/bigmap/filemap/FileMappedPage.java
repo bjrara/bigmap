@@ -2,7 +2,6 @@ package com.ctriposs.bigmap.filemap;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -10,6 +9,7 @@ import java.nio.channels.FileChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ctriposs.bigmap.page.Cleaner;
 import com.ctriposs.bigmap.page.IMappedPage;
 
 public class FileMappedPage implements IMappedPage {
@@ -40,22 +40,14 @@ public class FileMappedPage implements IMappedPage {
 		this.file = raf;
 	}
 
-	public void close() {
+	public void close() throws IOException {
 		synchronized (this) {
 			if (close)
 				return;
 			flush();
-
 			unmap(buffer);
-
 			buffer = null;
-			try {
-				file.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
+			file.close();
 			close = true;
 		}
 	}
@@ -126,45 +118,4 @@ public class FileMappedPage implements IMappedPage {
 	{
 		Cleaner.clean(buffer);
 	}
-
-	/**
-	 * Helper class allowing to clean direct buffers.
-	 */
-	private static class Cleaner {
-		public static final boolean CLEAN_SUPPORTED;
-		private static final Method directBufferCleaner;
-		private static final Method directBufferCleanerClean;
-
-		static {
-			Method directBufferCleanerX = null;
-			Method directBufferCleanerCleanX = null;
-			boolean v;
-			try {
-				directBufferCleanerX = Class.forName("java.nio.DirectByteBuffer").getMethod("cleaner");
-				directBufferCleanerX.setAccessible(true);
-				directBufferCleanerCleanX = Class.forName("sun.misc.Cleaner").getMethod("clean");
-				directBufferCleanerCleanX.setAccessible(true);
-				v = true;
-			} catch (Exception e) {
-				v = false;
-			}
-			CLEAN_SUPPORTED = v;
-			directBufferCleaner = directBufferCleanerX;
-			directBufferCleanerClean = directBufferCleanerCleanX;
-		}
-
-		public static void clean(ByteBuffer buffer) {
-			if (buffer == null)
-				return;
-			if (CLEAN_SUPPORTED && buffer.isDirect()) {
-				try {
-					Object cleaner = directBufferCleaner.invoke(buffer);
-					directBufferCleanerClean.invoke(cleaner);
-				} catch (Exception e) {
-					// silently ignore exception
-				}
-			}
-		}
-	}
-
 }
