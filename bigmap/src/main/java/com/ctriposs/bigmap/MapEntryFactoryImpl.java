@@ -15,6 +15,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.ctriposs.bigmap.filemap.FileMappedPageFactory;
 import com.ctriposs.bigmap.page.MappedPageFactoryImpl;
 import com.ctriposs.bigmap.page.IMappedPage;
 import com.ctriposs.bigmap.page.IMappedPageFactory;
@@ -219,9 +220,9 @@ public class MapEntryFactoryImpl implements IMapEntryFactory {
 	
 	void commonInit() throws IOException {
 		// initialize page factories
-		indexPageFactory = new MappedPageFactoryImpl(INDEX_PAGE_SIZE, this.mapFileDirectory + INDEX_PAGE_FOLDER);
-		dataPageFactory = new MappedPageFactoryImpl(DATA_PAGE_SIZE, this.mapFileDirectory + DATA_PAGE_FOLDER);
-		metaPageFactory = new MappedPageFactoryImpl(META_DATA_PAGE_SIZE, this.mapFileDirectory + META_DATA_PAGE_FOLDER);
+		indexPageFactory = new FileMappedPageFactory(INDEX_PAGE_SIZE, this.mapFileDirectory + INDEX_PAGE_FOLDER);
+		dataPageFactory = new FileMappedPageFactory(DATA_PAGE_SIZE, this.mapFileDirectory + DATA_PAGE_FOLDER);
+		metaPageFactory = new FileMappedPageFactory(META_DATA_PAGE_SIZE, this.mapFileDirectory + META_DATA_PAGE_FOLDER);
 		
 		// initialize array indexes
 		initArrayIndex();
