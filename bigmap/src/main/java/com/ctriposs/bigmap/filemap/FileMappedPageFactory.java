@@ -157,6 +157,6 @@ public class FileMappedPageFactory extends AbstractMappedPageFactory implements 
 
 	@Override
 	protected String getFileNameByIndex(long index) {
-		return String.format("%s%d%s", pageFileName, index, PAGE_FILE_TYPE);
+		return String.format("%s%d%s", pageFile, index, PAGE_FILE_TYPE);
 	}
 }

@@ -29,12 +29,7 @@ import static java.nio.channels.FileChannel.MapMode.READ_WRITE;
 public class MappedPageFactoryImpl extends AbstractMappedPageFactory implements IMappedPageFactory {
 	
 	private final static Logger logger = LoggerFactory.getLogger(MappedPageFactoryImpl.class);
-	
-	private int pageSize;
-	private String pageDir;
-	private File pageDirFile;
-	private String pageFile;
-	
+
 	private Map<Long, MappedPageImpl> cache;
 	
 	public MappedPageFactoryImpl(int pageSize, String pageDir) {
@@ -177,7 +172,7 @@ public class MappedPageFactoryImpl extends AbstractMappedPageFactory implements 
 	@Override
 	public Set<Long> getPageIndexSetBefore(long timestamp) {
 		Set<Long> beforeIndexSet = new HashSet<Long>();
-		File[] pageFiles = this.pageDirFile.listFiles();
+		File[] pageFiles = this.pageFolder.listFiles();
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				if (pageFile.lastModified() < timestamp) {
@@ -218,7 +213,7 @@ public class MappedPageFactoryImpl extends AbstractMappedPageFactory implements 
 	@Override
 	public Set<Long> getExistingBackFileIndexSet() {
 		Set<Long> indexSet = new HashSet<Long>();
-		File[] pageFiles = this.pageDirFile.listFiles();
+		File[] pageFiles = this.pageFolder.listFiles();
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				String fileName = pageFile.getName();
@@ -281,7 +276,7 @@ public class MappedPageFactoryImpl extends AbstractMappedPageFactory implements 
 	@Override
 	public Set<String> getBackPageFileSet() {
 		Set<String> fileSet = new HashSet<String>();
-		File[] pageFiles = this.pageDirFile.listFiles();
+		File[] pageFiles = this.pageFolder.listFiles();
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				String fileName = pageFile.getName();
@@ -296,7 +291,7 @@ public class MappedPageFactoryImpl extends AbstractMappedPageFactory implements 
 	@Override
 	public long getBackPageFileSize() {
 		long totalSize = 0L;
-		File[] pageFiles = this.pageDirFile.listFiles();
+		File[] pageFiles = this.pageFolder.listFiles();
 		if (pageFiles != null && pageFiles.length > 0) {
 			for(File pageFile : pageFiles) {
 				String fileName = pageFile.getName();

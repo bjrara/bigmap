@@ -17,7 +17,7 @@ public abstract class AbstractMappedPageFactory implements IMappedPageFactory {
 	protected static final String PAGE_FILE_TYPE = ".dat";
 
 	protected final int pageSize;
-	protected final String pageFileName;
+	protected final String pageFile;
 	protected final String pageDir;
 
 	protected boolean deleted;
@@ -30,7 +30,7 @@ public abstract class AbstractMappedPageFactory implements IMappedPageFactory {
 		}
 		this.pageDir = pageDir;
 		this.pageSize = pageSize;
-		this.pageFileName = this.pageDir + PAGE_FILE_NAME + "-";
+		this.pageFile = this.pageDir + PAGE_FILE_NAME + "-";
 
 		if (!pageFolder.exists()) {
 			pageFolder.mkdirs();
