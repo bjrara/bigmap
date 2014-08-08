@@ -39,7 +39,7 @@ public class MappedPageFactoryTest {
 		Set<String> fileSet = mappedPageFactory.getBackPageFileSet();
 		assertTrue(fileSet.size() == 10);
 		for(int i = 0; i < 10; i++ ) {
-			assertTrue(fileSet.contains(MappedPageFactoryImpl.PAGE_FILE_NAME + "-" + i + MappedPageFactoryImpl.PAGE_FILE_SUFFIX));
+			assertTrue(fileSet.contains(MappedPageFactoryImpl.PAGE_FILE_NAME + "-" + i + MappedPageFactoryImpl.PAGE_FILE_TYPE));
 		}
 	}
 	
