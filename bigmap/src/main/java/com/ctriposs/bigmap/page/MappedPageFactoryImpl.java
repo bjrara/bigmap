@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 	public static final String PAGE_FILE_NAME = "page";
 	public static final String PAGE_FILE_SUFFIX = ".dat";
 	
-	private Map<Long, MappedPageImpl> cache;
+	private ConcurrentHashMap<Long, MappedPageImpl> cache;
 	
 	public MappedPageFactoryImpl(int pageSize, String pageDir) {
 		this.pageSize = pageSize;
@@ -48,44 +49,40 @@ public class MappedPageFactoryImpl implements IMappedPageFactory {
 			pageDirFile.mkdirs();
 		}
 		if (!this.pageDir.endsWith(File.separator)) {
-			this.pageDir += File.separator;
+		  this.pageDir += File.separator;
 		}
 		this.pageFile = this.pageDir + PAGE_FILE_NAME + "-"; 
-		this.cache = new HashMap<Long, MappedPageImpl>();
+		this.cache = new ConcurrentHashMap<Long, MappedPageImpl>();
 	}
 
 	public IMappedPage acquirePage(long index) throws IOException {
-		MappedPageImpl mpi = cache.get(index);
-		if (mpi == null) { // not in cache, need to create one
-				synchronized(cache) { // lock the map
-					mpi = cache.get(index); // double check
-					if (mpi == null) {
-						RandomAccessFile raf = null;
-						FileChannel channel = null;
-						try {
-							String fileName = this.getFileNameByIndex(index);
-							raf = new RandomAccessFile(fileName, "rw");
-							channel = raf.getChannel();
-							MappedByteBuffer mbb = channel.map(READ_WRITE, 0, this.pageSize);
-							mpi = new MappedPageImpl(mbb, fileName, index);
-							cache.put(index, mpi);
-							if (logger.isDebugEnabled()) {
-								logger.debug("Mapped page for " + fileName + " was just created and cached.");
-							}
-						} finally {
-							if (channel != null) channel.close();
-							if (raf != null) raf.close();
-						}
-					}
-				}
-	    } else {
-	    	if (logger.isDebugEnabled()) {
-	    		logger.debug("Hit mapped page " + mpi.getPageFile() + " in cache.");
-	    	}
-	    }
-	
-		return mpi;
-	}
+    MappedPageImpl mpi = cache.get(index);
+    if (mpi == null) { // not in cache, need to create one
+      RandomAccessFile raf = null;
+      FileChannel channel = null;
+      try {
+        String fileName = this.getFileNameByIndex(index);
+        raf = new RandomAccessFile(fileName, "rw");
+        channel = raf.getChannel();
+        MappedByteBuffer mbb = channel.map(READ_WRITE, 0, this.pageSize);
+        mpi = new MappedPageImpl(mbb, fileName, index);
+        MappedPageImpl prev = cache.putIfAbsent(index, mpi);
+        if(prev != null)
+          mpi=prev;
+        if (logger.isDebugEnabled()) {
+          logger.debug("Mapped page for " + fileName + " was just created and cached.");
+        }
+      } finally {
+        if (channel != null) channel.close();
+        if (raf != null) raf.close();
+      }
+    } else {
+      if (logger.isDebugEnabled()) {
+        logger.debug("Hit mapped page " + mpi.getPageFile() + " in cache.");
+      }
+    }
+    return mpi;
+  }
 	
 	private String getFileNameByIndex(long index) {
 		return this.pageFile + index + PAGE_FILE_SUFFIX;
